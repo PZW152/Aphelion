@@ -7,3 +7,4 @@ src/Aphelion.Web/dist/
 .vs/
 .vscode/
 TestResults/
+.claude/
