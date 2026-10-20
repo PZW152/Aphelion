@@ -67,6 +67,12 @@ public sealed class GameLauncher(
 
         var gameDir = instance.GameDirectory;
         Directory.CreateDirectory(gameDir);
+        if (instance.Loader.Kind is not (LoaderKind.Vanilla or LoaderKind.Unknown))
+        {
+            // Old Forge writes config/splash.properties and scans mods/ without creating either folder.
+            Directory.CreateDirectory(Path.Combine(gameDir, "config"));
+            Directory.CreateDirectory(Path.Combine(gameDir, "mods"));
+        }
         string? legacyAssets = null;
         if (version.Json.AssetIndex is { } assetRef)
         {
@@ -156,8 +162,9 @@ public sealed class GameLauncher(
 
         var session = new GameSession(process, instance.Id, instance.Name, instance.RootPath, gameDir, (s, exit) => OnExit(s, exit, root, nativesDir));
         _sessions[session.Id] = session;
-        session.Start();
+        // Subscribers attach before output is read, so a JVM that dies instantly cannot race the start event.
         SessionStarted?.Invoke(session);
+        session.Start();
         return session;
     }
 

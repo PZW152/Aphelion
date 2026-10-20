@@ -171,6 +171,16 @@ public class VersionResolverTests
     }
 
     [Fact]
+    public void Loader_profiles_with_nonstandard_timestamps_parse()
+    {
+        // Fabric meta writes offsets without a colon, which DateTimeOffset parsing rejects.
+        const string fabric = """{"id":"fabric-loader-0.16.9-1.21.1","inheritsFrom":"1.21.1","releaseTime":"2024-11-14T08:27:59+0000","time":"2024-11-14T08:27:59+0000","type":"release","mainClass":"net.fabricmc.loader.impl.launch.knot.KnotClient","arguments":{"game":[],"jvm":["-DFabricMcEmu= net.minecraft.client.main.Main "]},"libraries":[{"name":"net.fabricmc:fabric-loader:0.16.9","url":"https://maven.fabricmc.net/","sha1":"abc","size":1}]}""";
+        var json = JsonSerializer.Deserialize<VersionJson>(fabric, Json.External)!;
+        Assert.Equal("2024-11-14T08:27:59+0000", json.ReleaseTime);
+        Assert.Equal("abc", json.Libraries[0].Sha1);
+    }
+
+    [Fact]
     public void Arguments_round_trip_both_shapes()
     {
         const string text = """{"id":"x","arguments":{"game":["--a",{"rules":[{"action":"allow","features":{"is_demo_user":true}}],"value":"--demo"},{"rules":[],"value":["--w","1"]}],"jvm":[]}}""";

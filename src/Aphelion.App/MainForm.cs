@@ -30,16 +30,24 @@ internal sealed class MainForm : Form, IHostWindow
         Text = AppInfo.Name;
         Icon = Icon.ExtractAssociatedIcon(Environment.ProcessPath!);
         BackColor = Panel;
-        MinimumSize = new Size(1040, 680);
-        StartPosition = FormStartPosition.CenterScreen;
-        Size = new Size(1280, 800);
-        AutoScaleMode = AutoScaleMode.Dpi;
+        StartPosition = FormStartPosition.Manual;
         Controls.Add(_web);
+    }
+
+    /// <summary>Sizes are logical (96-DPI) pixels scaled to the monitor, then clamped to its work area and centred.</summary>
+    private void ApplyInitialBounds()
+    {
+        var scale = DeviceDpi / 96.0;
+        var area = Screen.FromHandle(Handle).WorkingArea;
+        MinimumSize = new Size((int)(1040 * scale), (int)(680 * scale));
+        var size = new Size(Math.Min((int)(1280 * scale), (int)(area.Width * 0.92)), Math.Min((int)(800 * scale), (int)(area.Height * 0.92)));
+        Bounds = new Rectangle(area.Left + (area.Width - size.Width) / 2, area.Top + (area.Height - size.Height) / 2, size.Width, size.Height);
     }
 
     protected override async void OnHandleCreated(EventArgs e)
     {
         base.OnHandleCreated(e);
+        ApplyInitialBounds();
         var dark = 1;
         Native.DwmSetWindowAttribute(Handle, Native.DWMWA_USE_IMMERSIVE_DARK_MODE, ref dark, sizeof(int));
         var border = 0x00393432; // COLORREF (BGR) of #323439: a hairline that matches the panel
@@ -132,7 +140,7 @@ internal sealed class MainForm : Form, IHostWindow
     {
         var path = new Uri(e.Request.Uri).AbsolutePath.TrimStart('/');
         if (path.Length == 0) path = "index.html";
-        var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream("ui/" + path);
+        var stream = UiResources.TryGetValue(path, out var resourceName) ? Assembly.GetExecutingAssembly().GetManifestResourceStream(resourceName) : null;
         var env = _web.CoreWebView2.Environment;
         if (stream is null)
         {
@@ -146,6 +154,11 @@ internal sealed class MainForm : Form, IHostWindow
                       "img-src 'self' data: blob: https:; font-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-src 'none'";
         e.Response = env.CreateWebResourceResponse(stream, 200, "OK", headers);
     }
+
+    /// <summary>Embedded UI files keyed by URL path (MSBuild may write subfolders with backslashes).</summary>
+    private static readonly Dictionary<string, string> UiResources = Assembly.GetExecutingAssembly().GetManifestResourceNames()
+        .Where(n => n.StartsWith("ui/", StringComparison.Ordinal))
+        .ToDictionary(n => n[3..].Replace('\\', '/'), n => n, StringComparer.Ordinal);
 
     private static string MimeType(string path) => Path.GetExtension(path).ToLowerInvariant() switch
     {

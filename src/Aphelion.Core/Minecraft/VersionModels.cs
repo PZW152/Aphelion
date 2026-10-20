@@ -42,8 +42,9 @@ public sealed class VersionJson
     public JavaVersionRef? JavaVersion { get; set; }
     public LoggingInfo? Logging { get; set; }
     public string? Jar { get; set; }
-    public DateTimeOffset? ReleaseTime { get; set; }
-    public DateTimeOffset? Time { get; set; }
+    // Kept as text: loaders publish timestamps in formats System.Text.Json rejects (e.g. "+0000"), and they are informational only.
+    public string? ReleaseTime { get; set; }
+    public string? Time { get; set; }
     public int? ComplianceLevel { get; set; }
     public int? MinimumLauncherVersion { get; set; }
 

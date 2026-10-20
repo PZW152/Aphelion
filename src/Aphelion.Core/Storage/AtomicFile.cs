@@ -56,7 +56,7 @@ public static class AtomicFile
         var backup = path + ".bak";
         if (File.Exists(path))
         {
-            var quarantine = $"{path}.corrupt-{DateTime.UtcNow:yyyyMMddHHmmss}";
+            var quarantine = $"{path}.corrupt-{DateTime.UtcNow.ToString("yyyyMMddHHmmss", System.Globalization.CultureInfo.InvariantCulture)}";
             try { File.Copy(path, quarantine, overwrite: true); } catch (IOException) { }
             Logging.Log.Warn($"Unreadable file {path}; preserved as {Path.GetFileName(quarantine)}.");
         }

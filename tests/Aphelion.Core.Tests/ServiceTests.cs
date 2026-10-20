@@ -230,6 +230,50 @@ public class ContentMetadataTests
     }
 }
 
+public class SavesTests
+{
+    /// <summary>Writes a minimal gzip NBT level.dat: root { Data { LevelName, LastPlayed, GameType, hardcore, Player {…}, list } }.</summary>
+    private static void WriteLevel(string path)
+    {
+        using var fs = File.Create(path);
+        using var gz = new System.IO.Compression.GZipStream(fs, System.IO.Compression.CompressionLevel.Fastest);
+        using var w = new BinaryWriter(gz);
+        void Name(string n) { var b = System.Text.Encoding.UTF8.GetBytes(n); w.Write(System.Buffers.Binary.BinaryPrimitives.ReverseEndianness((ushort)b.Length)); w.Write(b); }
+        void Tag(byte t, string n) { w.Write(t); Name(n); }
+        Tag(10, "");
+        Tag(10, "Data");
+        Tag(8, "LevelName"); Name("新的世界");
+        Tag(4, "LastPlayed"); w.Write(System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(1_700_000_000_000L));
+        Tag(3, "GameType"); w.Write(System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(1));
+        Tag(1, "hardcore"); w.Write((byte)1);
+        Tag(10, "Player"); Tag(3, "Score"); w.Write(0); w.Write((byte)0);
+        Tag(9, "Pos"); w.Write((byte)6); w.Write(System.Buffers.Binary.BinaryPrimitives.ReverseEndianness(2)); w.Write(0L); w.Write(0L);
+        w.Write((byte)0); // end Data
+        w.Write((byte)0); // end root
+    }
+
+    [Fact]
+    public void Level_dat_fields_are_read()
+    {
+        using var tmp = new TempDir();
+        Directory.CreateDirectory(Path.Combine(tmp.Path, "saves", "w1"));
+        WriteLevel(Path.Combine(tmp.Path, "saves", "w1", "level.dat"));
+        var world = Assert.Single(Saves.List(tmp.Path));
+        Assert.Equal("新的世界", world.Name);
+        Assert.Equal("creative", world.GameMode);
+        Assert.True(world.Hardcore);
+        Assert.Equal(DateTimeOffset.FromUnixTimeMilliseconds(1_700_000_000_000L), world.LastPlayed);
+    }
+
+    [Fact]
+    public void Corrupt_level_dat_still_lists_the_folder()
+    {
+        using var tmp = new TempDir();
+        tmp.File(Path.Combine("saves", "broken", "level.dat"), "not gzip");
+        Assert.Equal("broken", Assert.Single(Saves.List(tmp.Path)).Name);
+    }
+}
+
 public class LoaderCatalogTests
 {
     [Theory]

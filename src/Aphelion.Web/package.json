@@ -1,0 +1,27 @@
+{
+  "name": "aphelion-web",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Aphelion launcher interface (rendered inside WebView2).",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "check": "svelte-check --tsconfig ./tsconfig.json --fail-on-warnings",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@fontsource-variable/archivo": "5.3.0",
+    "@fontsource/jetbrains-mono": "5.3.0",
+    "dompurify": "3.4.17",
+    "marked": "18.1.1"
+  },
+  "devDependencies": {
+    "@sveltejs/vite-plugin-svelte": "7.3.1",
+    "@tsconfig/svelte": "5.0.8",
+    "svelte": "5.57.2",
+    "svelte-check": "4.7.7",
+    "typescript": "5.9.3",
+    "vite": "8.3.4"
+  }
+}

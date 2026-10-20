@@ -11,7 +11,8 @@ internal static class Program
     /// Command line:
     ///   (none)                     start the launcher
     ///   --install                  install or upgrade this build for the current user
-    ///   --uninstall [--quiet]      remove the installation (Settings › Apps calls this)
+    ///   --uninstall [--quiet [--purge]]  remove the installation (Settings › Apps calls this);
+    ///                              --purge also deletes Aphelion's settings, cache, logs and runtimes
     ///   --uninstall-run &lt;pid&gt;     internal: the temporary uninstaller copy
     /// </summary>
     [STAThread]
@@ -19,12 +20,13 @@ internal static class Program
     {
         ApplicationConfiguration.Initialize();
         var quiet = args.Contains("--quiet");
+        var purge = args.Contains("--purge");
 
         if (args.Length >= 2 && args[0] == "--uninstall-run" && int.TryParse(args[1], out var parent))
-            return Installation.RunUninstall(parent, quiet);
+            return Installation.RunUninstall(parent, quiet, purge);
         if (args.Contains("--uninstall"))
         {
-            Installation.LaunchUninstaller(quiet);
+            Installation.LaunchUninstaller(quiet, purge);
             return 0;
         }
 

@@ -9,6 +9,7 @@
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
     <InvariantGlobalization>false</InvariantGlobalization>
     <Deterministic>true</Deterministic>
+    <DebugType>embedded</DebugType>
 
     <!-- Product identity. AppId never changes across versions; see docs/architecture.md. -->
     <Product>Aphelion</Product>

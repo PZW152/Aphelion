@@ -117,7 +117,8 @@ internal static class Installation
         AtomicFile.WriteJson(ManifestPath, manifest, keepBackup: false);
         Log.Info($"Installed {AppInfo.Version} to {target}");
 
-        Process.Start(new ProcessStartInfo(exe) { UseShellExecute = false, WorkingDirectory = target });
+        // Shell execute: the installed copy must not inherit this process's console handles.
+        Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true, WorkingDirectory = target });
         Application.Exit();
     }
 
@@ -125,7 +126,7 @@ internal static class Installation
     /// The installed executable cannot delete itself while running, so a copy in %TEMP% performs the uninstall
     /// once this process has exited.
     /// </summary>
-    public static void LaunchUninstaller(bool quiet = false)
+    public static void LaunchUninstaller(bool quiet = false, bool purge = false)
     {
         var exe = Environment.ProcessPath!;
         var tempDir = Path.Combine(Path.GetTempPath(), "Aphelion-uninstall-" + Guid.NewGuid().ToString("N")[..8]);
@@ -136,17 +137,19 @@ internal static class Installation
         psi.ArgumentList.Add("--uninstall-run");
         psi.ArgumentList.Add(Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture));
         if (quiet) psi.ArgumentList.Add("--quiet");
+        if (purge) psi.ArgumentList.Add("--purge");
         Process.Start(psi);
         Application.Exit();
     }
 
     /// <summary>Runs from the temporary copy. Returns the process exit code.</summary>
-    public static int RunUninstall(int parentPid, bool quiet)
+    /// <param name="purgeQuietly">With --quiet: also delete Aphelion's own data (never the built-in game folder).</param>
+    public static int RunUninstall(int parentPid, bool quiet, bool purgeQuietly = false)
     {
         try { Process.GetProcessById(parentPid).WaitForExit(15000); } catch (ArgumentException) { }
 
         var standardData = AppPaths.StandardRoot();
-        var purge = false;
+        var purge = quiet && purgeQuietly;
         var purgeGames = false;
         if (!quiet)
         {
@@ -235,6 +238,8 @@ internal static class Installation
         Process.Start(new ProcessStartInfo("cmd.exe", $"/c ping 127.0.0.1 -n 3 > nul & rmdir /s /q \"{dir}\"")
         {
             CreateNoWindow = true, UseShellExecute = false, WindowStyle = ProcessWindowStyle.Hidden,
+            // Run outside the folder being deleted; a process cannot remove its own working directory.
+            WorkingDirectory = Path.GetTempPath(),
         });
     }
 

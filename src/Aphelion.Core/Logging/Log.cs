@@ -26,7 +26,7 @@ public static partial class Log
         if (_writer is not null) return;
         Directory.CreateDirectory(logDirectory);
         Rotate(logDirectory);
-        CurrentFile = Path.Combine(logDirectory, $"aphelion-{DateTime.Now:yyyyMMdd-HHmmss}-{Environment.ProcessId}.log");
+        CurrentFile = Path.Combine(logDirectory, $"aphelion-{DateTime.Now.ToString("yyyyMMdd-HHmmss", System.Globalization.CultureInfo.InvariantCulture)}-{Environment.ProcessId}.log");
         _writer = new StreamWriter(new FileStream(CurrentFile, FileMode.Create, FileAccess.Write, FileShare.ReadWrite), new UTF8Encoding(false))
         {
             AutoFlush = false,

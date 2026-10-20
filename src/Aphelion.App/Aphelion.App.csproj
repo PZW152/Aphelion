@@ -16,6 +16,7 @@
     <SelfContained>false</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
     <DebugType>embedded</DebugType>
+    <PublishReferencesDocumentationFiles>false</PublishReferencesDocumentationFiles>
     <!-- The UI build output is embedded; skip when building the shell alone (tests, CI without Node). -->
     <WebDist>$(MSBuildThisFileDirectory)..\Aphelion.Web\dist\</WebDist>
   </PropertyGroup>
@@ -38,6 +39,11 @@
     <ItemGroup>
       <Reference Remove="@(Reference)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf'" />
     </ItemGroup>
+  </Target>
+
+  <!-- WebView2Loader.dll is also copied beside the exe by the package, so the RID folder is a duplicate. -->
+  <Target Name="RemoveDuplicateLoader" AfterTargets="Publish" Condition="Exists('$(PublishDir)WebView2Loader.dll')">
+    <RemoveDir Directories="$(PublishDir)runtimes" />
   </Target>
 
   <Target Name="WarnMissingUi" BeforeTargets="Build" Condition="!Exists('$(WebDist)index.html')">
