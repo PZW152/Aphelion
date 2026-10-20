@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Launcher engine: no UI, no third-party dependencies. -->
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Aphelion.Core</RootNamespace>
+    <IsTrimmable>false</IsTrimmable>
+    <!-- Required by source-generated P/Invoke (LibraryImport); no hand-written unsafe code. -->
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Aphelion.Core.Tests" />
+  </ItemGroup>
+</Project>

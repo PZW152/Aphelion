@@ -1,0 +1,26 @@
+<Project>
+  <!-- Shared build settings for every .NET project in the repository. -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <AnalysisLevel>latest-recommended</AnalysisLevel>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <Deterministic>true</Deterministic>
+
+    <!-- Product identity. AppId never changes across versions; see docs/architecture.md. -->
+    <Product>Aphelion</Product>
+    <Company>Aphelion</Company>
+    <Copyright>Aphelion contributors</Copyright>
+    <Version>0.1.0</Version>
+    <NeutralLanguage>en</NeutralLanguage>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <!-- CA1031 (catch general exceptions) is intentional at well-documented boundaries only;
+         the remaining suppressions are style rules that do not fit a desktop application. -->
+    <NoWarn>$(NoWarn);CA1848;CA1303;CA1716;CA1720;CA1707;CA1054;CA1055;CA1056;CA2227;CA1002;CA1819;CA1308;CA1031;CA1305;CA1307;CA1309;CA1310;CA1311;CA1304;CA5394;CA1859;CA1822;CA1852;CA1805</NoWarn>
+  </PropertyGroup>
+</Project>

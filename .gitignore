@@ -1,0 +1,9 @@
+bin/
+obj/
+artifacts/
+node_modules/
+src/Aphelion.Web/dist/
+*.user
+.vs/
+.vscode/
+TestResults/
