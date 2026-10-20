@@ -74,3 +74,24 @@ The interface implements the canvas "Aphelion Launcher — NASA-punk" (Claude De
 - One accent (International Orange `#FF5B14`, user-selectable) reserved for actions; lamp colours (nominal, caution, warning) only report state.
 - One type family, Archivo, with the width axis as hierarchy (125% identity, 112% titles, 100% reading, 75% panel legends); JetBrains Mono only for logs.
 - Zero radius; hierarchy comes from surfaces and 1 px rules, not shadows.
+
+### Motion
+
+All timing and curves live in `src/lib/motion.ts` and the `--ease-*` / `--t-*` tokens in `app.css`. Movement
+always explains a state change, in the console's vocabulary:
+
+| Moment | Motion |
+| --- | --- |
+| Start-up | the console powers on once: rail rows cascade in, annunciator lamps flicker on one by one, the main screen rises |
+| Page change | View Transition: the old page lifts away, the new one settles in |
+| Orbit map | orbits trace themselves; bodies sway in unison along their orbits; choosing an instance moves every body smoothly to its new orbit, the target reticle pings and its ticks rotate |
+| Selection | the identity plate flips to the new name, readings cascade in |
+| Launch | finished stages fill green, the active stage carries a scanning light; the ignition guard's stripes march when armed; a running game pulses its lamp; the logo's craft orbits while anything is active |
+| Lists | rows rise in with a short stagger, removed rows slide out, the rest close the gap (FLIP); skeleton rows while loading |
+| Controls | tab bars and the rail use one gliding indicator; switches have a sprung knob; primary buttons sweep once when armed |
+| Dialogs | open like a hatch from the centre line and close in reverse |
+| Toasts | slide in with a countdown line that pauses on hover |
+| Theme | the new theme opens as a circle from the pressed control |
+
+Settings › Appearance › Motion offers *Follow system* (Windows "Animation effects"), *Full* and *Reduced*;
+Reduced removes transitions, orbiting and flicker while keeping state changes instant and visible.

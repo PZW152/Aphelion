@@ -7,6 +7,7 @@
   import ViewHeader from '../components/ViewHeader.svelte';
   import Icon from '../components/Icon.svelte';
   import Markdown from '../components/Markdown.svelte';
+  import { glide, rise, stagger } from '../lib/motion';
 
   const tabs = ['versions', 'mod', 'modpack', 'resourcePack', 'shader'] as const;
   type Tab = (typeof tabs)[number];
@@ -131,7 +132,7 @@
 </script>
 
 <ViewHeader title={t('download.title')} subtitle={tab === 'versions' ? t('download.versionsList.title') : t('download.source')} />
-<div class="tabs" role="tablist" aria-label={t('download.title')}>
+<div class="tabs" role="tablist" aria-label={t('download.title')} use:glide>
   {#each tabs as x (x)}
     <button role="tab" aria-selected={tab === x} onclick={() => { tab = x; app.downloadTab = x; }}>{tabLabel(x)}</button>
   {/each}
@@ -150,8 +151,8 @@
     </div>
     {#if versionError}<p class="empty">{versionError}</p>{/if}
     <ul class="vgrid">
-      {#each shownVersions as v (v.id)}
-        <li class="vrow">
+      {#each shownVersions as v, n (v.id)}
+        <li class="vrow" in:rise={{ delay: stagger(n, 12, 20), y: 4 }}>
           <span class="vid">{v.id}</span>
           <span class="muted tnum">{date(v.releaseTime)}</span>
           <button class="btn sm" onclick={() => { app.createVersion = v.id; app.createOpen = true; }}><Icon name="plus" size={14} />{t('instances.new')}</button>
@@ -183,9 +184,16 @@
       {:else if !searching && results.length === 0}
         <p class="empty">{t('download.noResults')}</p>
       {/if}
+      {#if searching && results.length === 0}
+        <ul class="hits" aria-hidden="true">
+          {#each Array(6) as _, n (n)}
+            <li class="hit"><span class="noicon skeleton"></span><span class="meta"><span class="sk skeleton" style:width="{30 + ((n * 23) % 30)}%"></span><span class="sk skeleton"></span><span class="sk skeleton" style:width="60%"></span></span></li>
+          {/each}
+        </ul>
+      {/if}
       <ul class="hits">
-        {#each results as hit (hit.project_id)}
-          <li>
+        {#each results as hit, n (hit.project_id)}
+          <li in:rise={{ delay: stagger(n % 24), y: 6 }}>
             <button class="hit" class:sel={selected?.project_id === hit.project_id} onclick={() => select(hit)}>
               {#if hit.icon_url}<img src={hit.icon_url} alt="" width="48" height="48" loading="lazy" />{:else}<span class="noicon"><Icon name="cube" size={20} /></span>{/if}
               <span class="meta">
@@ -204,6 +212,8 @@
 
     <aside class="detail" aria-label={t('common.details')}>
       {#if selected}
+        {#key selected.project_id}
+        <div class="detail-body" in:rise={{ y: 8 }}>
         <div class="head">
           {#if selected.icon_url}<img src={selected.icon_url} alt="" width="56" height="56" />{:else}<span class="noicon big"><Icon name="cube" size={24} /></span>{/if}
           <div class="titles">
@@ -258,6 +268,8 @@
             <Markdown source={project.body} />
           {/if}
         </div>
+        </div>
+        {/key}
       {/if}
     </aside>
   </div>
@@ -293,6 +305,10 @@
   .more { align-self: center; margin: 8px 0; }
 
   .detail { border-left: 1px solid var(--rule); background: var(--panel-2); padding: 24px; display: flex; flex-direction: column; gap: 18px; overflow: auto; min-height: 0; }
+  .detail-body { display: flex; flex-direction: column; gap: 18px; }
+  .sk { display: block; height: 10px; width: 90%; }
+  .hit img { transition: transform var(--t-base) var(--ease); }
+  .hit:hover img { transform: scale(1.06); }
   .head { display: grid; grid-template-columns: 56px 1fr; gap: 14px; align-items: center; }
   .titles { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
   .install { display: flex; flex-direction: column; gap: 12px; padding-bottom: 18px; border-bottom: 1px solid var(--rule); }

@@ -9,6 +9,8 @@
   import Dialog from '../components/Dialog.svelte';
   import ContentList from './ContentList.svelte';
   import InstanceSettings from './InstanceSettings.svelte';
+  import { flip } from 'svelte/animate';
+  import { glide, reduced, rise, slide, stagger, ticker } from '../lib/motion';
 
   let query = $state('');
   let currentId = $state<string | null>(app.focusInstance ?? app.settings?.selectedInstance ?? null);
@@ -134,8 +136,8 @@
       </label>
     </div>
     <ul class="items">
-      {#each filtered as i (i.id)}
-        <li>
+      {#each filtered as i, n (i.id)}
+        <li in:slide={{ delay: stagger(n) }} out:slide={{ duration: 140 }} animate:flip={{ duration: reduced() ? 0 : 240 }}>
           <button class="item" class:sel={current?.id === i.id} onclick={() => pick(i.id)}>
             <span class="patch" style:--c={i.color}>{i.name.slice(0, 1).toUpperCase()}</span>
             <span class="meta">
@@ -159,7 +161,7 @@
     {#if current}
       <header class="detail-head drag">
         <div class="titles">
-          <h2 class="t-identity title ellipsis" title={current.name}>{current.name}</h2>
+          {#key current.id}<h2 class="t-identity title ellipsis" title={current.name} in:ticker>{current.name}</h2>{/key}
           <span class="t-label ellipsis">versions\{current.id} · {current.gameVersion ?? '?'} · {t('loader.' + current.loader.kind)} {current.loader.version ?? ''}</span>
         </div>
         <div class="head-actions">
@@ -167,13 +169,14 @@
           <button class="btn primary" disabled={running || !!current.error} onclick={() => launch(current!)}><Icon name="play" size={14} />{t('instances.launch')}</button>
         </div>
       </header>
-      <div class="tabs" role="tablist">
+      <div class="tabs" role="tablist" use:glide>
         {#each tabs as [key, label, n] (key)}
           <button role="tab" aria-selected={tab === key} onclick={() => (tab = key)}>{label}{#if n != null}<span class="count">{n}</span>{/if}</button>
         {/each}
       </div>
 
-      <div class="pane">
+      {#key current.id + tab}
+      <div class="pane" in:rise={{ y: 6 }}>
         {#if tab === 'overview'}
           <div class="overview">
             {#if current.error}<p class="broken"><Icon name="alert" />{t('launch.broken', { error: current.error })}</p>{/if}
@@ -202,16 +205,14 @@
             </div>
           </div>
         {:else if tab === 'mods' || tab === 'resourcepacks' || tab === 'shaderpacks'}
-          {#key current.id + tab}
-            <ContentList instance={current} folder={tab as ContentFolder} />
-          {/key}
+          <ContentList instance={current} folder={tab as ContentFolder} />
         {:else if tab === 'saves'}
           {#if worlds.length === 0}
             <p class="empty">{t('saves.empty')}</p>
           {:else}
             <ul class="worlds">
-              {#each worlds as w (w.folder)}
-                <li class="world">
+              {#each worlds as w, n (w.folder)}
+                <li class="world" in:rise={{ delay: stagger(n), y: 6 }}>
                   {#if w.iconDataUrl}<img src={w.iconDataUrl} alt="" width="48" height="48" />{:else}<span class="noicon"><Icon name="globeGrid" size={20} /></span>{/if}
                   <div class="meta">
                     <span class="iname">{w.name}</span>
@@ -223,9 +224,10 @@
             </ul>
           {/if}
         {:else if tab === 'settings'}
-          {#key current.id}<InstanceSettings instance={current} />{/key}
+          <InstanceSettings instance={current} />
         {/if}
       </div>
+      {/key}
     {:else}
       <div class="drag head-spacer"></div>
       <div class="empty">

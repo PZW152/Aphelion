@@ -1,11 +1,14 @@
 <script lang="ts">
-  import { tick } from 'svelte';
+  import { tick, untrack } from 'svelte';
   import { app, fail, toast } from '../lib/app.svelte';
   import { call } from '../lib/rpc';
   import { t } from '../lib/i18n/index.svelte';
   import { bytes, timespan } from '../lib/format';
   import type { LogLine } from '../lib/types';
   import ViewHeader from '../components/ViewHeader.svelte';
+  import { Tween } from 'svelte/motion';
+  import { cubicOut } from 'svelte/easing';
+  import { hatch, reduced, rise } from '../lib/motion';
   import Icon from '../components/Icon.svelte';
 
   const RENDER_LIMIT = 2000;
@@ -27,6 +30,19 @@
   });
 
   const all = $derived(session ? app.logs[session.id] ?? [] : []);
+
+  // Lines that arrive while the page is open flash briefly; history loaded on entry does not.
+  let seenBefore = $state(Number.MAX_SAFE_INTEGER);
+  $effect(() => {
+    void session?.id; // re-baseline only when the viewed session changes
+    seenBefore = untrack(() => all.at(-1)?.sequence ?? 0);
+  });
+
+  // The memory reading rolls toward each new sample instead of jumping.
+  const memory = new Tween(0, { duration: 600, easing: cubicOut });
+  $effect(() => {
+    if (session) memory.set(session.state === 'exited' ? 0 : session.memoryBytes, { duration: reduced() ? 0 : 600 });
+  });
   const counts = $derived.by(() => {
     let i = 0, w = 0, e = 0;
     for (const l of all) {
@@ -96,7 +112,7 @@
   <div class="layout">
     <div class="console-wrap">
       {#if exit?.crash}
-        <section class="crash" aria-label={t('telemetry.crash.title')}>
+        <section class="crash" aria-label={t('telemetry.crash.title')} in:hatch={{ duration: 360 }}>
           <header>
             <span class="lamp warning"></span>
             <h2 class="t-section">{t('telemetry.crash.title')}</h2>
@@ -123,7 +139,7 @@
         <p class="exited t-label tnum"><span class="lamp hollow"></span>{t('telemetry.exited', { code: exit.exitCode, t: timespan(exit.duration) })}</p>
       {/if}
 
-      <div class="console screen">
+      <div class="console screen ticks">
         <div class="bar-top">
           <span>{t('telemetry.output', { pid: session.processId })}</span>
           <div class="controls">
@@ -137,7 +153,7 @@
         </div>
         <div class="lines selectable" bind:this={logEl} onscroll={onScroll} role="log" aria-live="off">
           {#each visible as l (l.sequence)}
-            <div class="line {l.level}"><span class="ts">[{time(l.time)}]</span> <span class="th">[{l.thread ? `${l.thread}/` : ''}{l.level.toUpperCase()}]</span> {l.message}</div>
+            <div class="line {l.level}" class:fresh={l.sequence > seenBefore}><span class="ts">[{time(l.time)}]</span> <span class="th">[{l.thread ? `${l.thread}/` : ''}{l.level.toUpperCase()}]</span> {l.message}</div>
           {/each}
         </div>
         {#if !follow}<button class="btn sm follow" onclick={() => { follow = true; logEl!.scrollTop = logEl!.scrollHeight; }}><Icon name="chevronDown" size={14} />{t('telemetry.follow')}</button>{/if}
@@ -147,7 +163,7 @@
     <aside class="side">
       <div class="gauge">
         <span class="t-label">{t('telemetry.processMemory')}</span>
-        <span class="big tnum">{session.state === 'exited' ? '—' : bytes(session.memoryBytes)}</span>
+        <span class="big tnum">{session.state === 'exited' ? '—' : bytes(memory.current)}</span>
         <svg viewBox="0 0 240 48" role="img" aria-label={t('telemetry.processMemory')}>
           <line x1="0" y1="4" x2="240" y2="4" stroke="var(--rule)" stroke-dasharray="3 4" />
           {#if spark}<polyline points={spark} fill="none" stroke="var(--accent)" stroke-width="1.5" />{/if}
@@ -176,6 +192,8 @@
   .counts .w { color: var(--caution); }
   .counts .e { color: var(--warning); }
   .lines { flex: 1; overflow: auto; padding: 10px 14px; font-family: var(--font-mono); font-size: 12.5px; line-height: 1.7; color: var(--ink-3); white-space: pre-wrap; overflow-wrap: anywhere; }
+  .line.fresh { animation: fresh 900ms var(--ease) both; }
+  @keyframes fresh { from { background: color-mix(in oklab, var(--accent) 18%, transparent); transform: translateX(-4px); } }
   .line.warn { color: var(--caution); }
   .line.error, .line.fatal { color: var(--warning); }
   .line.debug, .line.trace { color: var(--faint); }

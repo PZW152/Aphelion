@@ -3,6 +3,7 @@
   import { app, liveSessions, runningTasks, selectedAccount } from '../lib/app.svelte';
   import { t } from '../lib/i18n/index.svelte';
   import { megabytes } from '../lib/format';
+  import { flicker } from '../lib/motion';
 
   type Tone = 'ok' | 'caution' | 'warning' | 'off' | 'plain';
 
@@ -34,17 +35,22 @@
 </script>
 
 <div class="panel" role="status" aria-label={t('ann.status')}>
-  {#each cells as c (c.key)}
-    <div class="cell" class:secondary={c.secondary}>
+  {#each cells as c, i (c.key)}
+    <div class="cell annunciator-cell" class:secondary={c.secondary} style:--i={i}>
       <span class="t-legend">{c.label}</span>
-      <span class="value tnum {c.tone}">{c.value}</span>
+      <!-- A changed reading re-lights like a lamp switching state (memory drifts constantly, so only its tone counts). -->
+      {#key c.key === 'mem' ? c.tone : c.tone + c.value}
+        <span class="value tnum {c.tone}" in:flicker>{c.value}</span>
+      {/key}
     </div>
   {/each}
 </div>
 
 <style>
   .panel { display: grid; grid-template-columns: repeat(6, auto); gap: 4px; }
-  .cell { padding: 6px 10px; background: var(--screen); border: 1px solid var(--rule); display: flex; flex-direction: column; gap: 2px; min-width: 66px; }
+  .cell { padding: 6px 10px; background: var(--screen); border: 1px solid var(--rule); display: flex; flex-direction: column; gap: 2px; min-width: 66px; transition: border-color var(--t-base); }
+  .cell:has(.warning) { border-color: color-mix(in oklab, var(--warning) 45%, var(--rule)); }
+  .cell:has(.caution) { border-color: color-mix(in oklab, var(--caution) 35%, var(--rule)); }
   .value { font-size: 12px; font-weight: 700; white-space: nowrap; }
   .ok { color: var(--nominal); }
   .caution { color: var(--caution); }

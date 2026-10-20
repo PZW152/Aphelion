@@ -7,6 +7,7 @@
   import type { StorageInfo } from '../lib/types';
   import ViewHeader from '../components/ViewHeader.svelte';
   import Icon from '../components/Icon.svelte';
+  import { glide, viewTransition } from '../lib/motion';
 
   const sections = ['appearance', 'download', 'java', 'game', 'accounts', 'storage', 'about'] as const;
   const accents = ['#FF5B14', '#F2B33D', '#4FA3FF', '#6FCF97', '#B48CFF', '#E6ECE8'];
@@ -40,6 +41,14 @@
       const el = document.getElementById('set-' + id);
       if (el && el.getBoundingClientRect().top - scroller.getBoundingClientRect().top < 120) active = id;
     }
+  }
+
+  /** The new theme opens as a circle from the pressed control (motion.ts › viewTransition). */
+  function switchTheme(theme: string, e: MouseEvent) {
+    // Keyboard activation reports (0, 0); start from the button itself then.
+    const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const origin = e.clientX || e.clientY ? { x: e.clientX, y: e.clientY } : { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+    viewTransition(() => updateSettings({ theme }), 'theme', origin);
   }
 
   async function rescan() {
@@ -80,9 +89,9 @@
 <ViewHeader title={t('settings.title')} />
 
 <div class="layout">
-  <nav class="index" aria-label={t('settings.title')}>
+  <nav class="index" aria-label={t('settings.title')} use:glide={{ axis: 'y' }}>
     {#each sections as id (id)}
-      <button class:on={active === id} onclick={() => jump(id)}>{t('settings.section.' + id)}</button>
+      <button class:on={active === id} aria-current={active === id ? 'page' : undefined} onclick={() => jump(id)}>{t('settings.section.' + id)}</button>
     {/each}
   </nav>
 
@@ -101,7 +110,7 @@
         <span class="label">{t('settings.theme')}</span>
         <div class="seg">
           {#each ['console', 'manual', 'system'] as v (v)}
-            <button aria-pressed={s.theme === v} onclick={() => updateSettings({ theme: v })}>{t('settings.theme.' + v)}</button>
+            <button aria-pressed={s.theme === v} onclick={(e) => switchTheme(v, e)}>{t('settings.theme.' + v)}</button>
           {/each}
         </div>
       </div>
@@ -111,6 +120,17 @@
           {#each accents as c (c)}
             <button class="swatch" style:background={c} aria-label={c} aria-pressed={s.accent.toLowerCase() === c.toLowerCase()} onclick={() => updateSettings({ accent: c })}></button>
           {/each}
+        </div>
+      </div>
+      <div class="row top">
+        <span class="label">{t('settings.motion')}</span>
+        <div class="stack">
+          <div class="seg">
+            {#each ['system', 'full', 'reduced'] as v (v)}
+              <button aria-pressed={(s.motion ?? 'system') === v} onclick={() => updateSettings({ motion: v })}>{t('settings.motion.' + v)}</button>
+            {/each}
+          </div>
+          <p class="hint">{t('settings.motion.hint')}</p>
         </div>
       </div>
     </section>
@@ -282,7 +302,10 @@
 <style>
   .layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 200px minmax(0, 1fr); }
   .index { padding: 20px 0 0 28px; display: flex; flex-direction: column; gap: 2px; }
-  .index button { all: unset; cursor: pointer; padding: 8px 0; font-size: 14px; color: var(--ink-3); }
+  .index { position: relative; }
+  .index :global(.glide-y) { left: 16px; width: 2px; top: 0; background: var(--accent); }
+  .index button { all: unset; cursor: pointer; padding: 8px 0; font-size: 14px; color: var(--ink-3); transition: color var(--t-fast), transform var(--t-base) var(--ease); }
+  .index button.on { transform: translateX(4px); }
   .index button:hover { color: var(--ink); }
   .index button.on { color: var(--accent-ink); font-weight: 700; }
   .index button:focus-visible { outline: 2px solid var(--accent); }
@@ -296,7 +319,9 @@
   .stack { display: flex; flex-direction: column; gap: 8px; width: 100%; }
   .hint { font-size: 12px; color: var(--muted); line-height: 1.55; }
   .swatches { display: flex; gap: 6px; }
-  .swatch { width: 28px; height: 28px; border: 0; cursor: pointer; padding: 0; outline-offset: 2px; }
+  .swatch { width: 28px; height: 28px; border: 0; cursor: pointer; padding: 0; outline-offset: 2px; transition: transform var(--t-base) var(--ease-spring), outline-offset var(--t-base) var(--ease); }
+  .swatch:hover { transform: scale(1.12); }
+  .swatch[aria-pressed='true'] { outline-offset: 3px; }
   .swatch[aria-pressed='true'] { outline: 2px solid var(--ink); }
   .cards { display: grid; gap: 8px; }
   .cards.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }

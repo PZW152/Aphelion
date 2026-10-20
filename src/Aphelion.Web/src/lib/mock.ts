@@ -8,7 +8,7 @@ const now = Date.now();
 const iso = (msAgo: number) => new Date(now - msAgo).toISOString();
 
 const settings: Settings = {
-  schema: 1, language: 'auto', theme: 'console', accent: '#FF5B14',
+  schema: 1, language: 'auto', theme: 'console', accent: '#FF5B14', motion: 'system',
   download: { source: 'auto', concurrency: 24 },
   game: { memory: { mode: 'auto', fixedMb: 4096 }, resolution: { width: 1280, height: 720, fullscreen: false }, jvmArguments: '', gameArguments: '', javaPath: null, afterLaunch: 'keep', analyzeCrashes: true },
   gameRoots: [{ path: 'C:\\Users\\Pilot\\AppData\\Local\\Aphelion\\minecraft', name: 'Aphelion' }, { path: 'D:\\Games\\.minecraft', name: 'Games' }],

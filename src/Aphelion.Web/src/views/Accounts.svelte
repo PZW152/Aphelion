@@ -9,6 +9,8 @@
   import PlayerHead from '../components/PlayerHead.svelte';
   import Dialog from '../components/Dialog.svelte';
   import Icon from '../components/Icon.svelte';
+  import { flip } from 'svelte/animate';
+  import { reduced, rise, slide, stagger } from '../lib/motion';
 
   let removing = $state<Account | null>(null);
 
@@ -144,9 +146,9 @@
     <p class="empty">{t('accounts.empty')}</p>
   {:else}
     <ul class="cards">
-      {#each app.accounts.accounts as a (a.id)}
+      {#each app.accounts.accounts as a, n (a.id)}
         {@const current = a.id === app.accounts.selected}
-        <li class="card" class:current>
+        <li class="card" class:current in:rise={{ delay: stagger(n, 50), y: 10 }} out:slide={{ x: -20, duration: 180 }} animate:flip={{ duration: reduced() ? 0 : 260 }}>
           <PlayerHead skinUrl={a.skinUrl} uuid={a.uuid} size={64} />
           <div class="info">
             <span class="name">{a.name}</span>
@@ -197,7 +199,8 @@
     </ol>
     <button class="code screen" onclick={copyCode} title={t('common.copy')}>
       <span class="t-label">{t('accounts.ms.code')}</span>
-      <span class="value t-mono selectable">{msFlow.userCode}</span>
+      <!-- The code arrives character by character, like a split-flap display. -->
+      <span class="value t-mono selectable" aria-label={msFlow.userCode}>{#each msFlow.userCode.split('') as ch, k (k)}<span class="flap" style:--k={k}>{ch}</span>{/each}</span>
       <Icon name="copy" />
     </button>
     <p class="waiting"><span class="lamp caution pulse"></span>{t('accounts.ms.waiting')} <span class="muted tnum">{t('accounts.ms.expires', { t: `${Math.floor(remaining / 60)}:${String(remaining % 60).padStart(2, '0')}` })}</span></p>
@@ -259,7 +262,17 @@
   .option strong { font-size: 15px; color: var(--ink); }
   .cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(420px, 1fr)); gap: 8px; max-width: 1200px; }
   .card { display: grid; grid-template-columns: 64px minmax(0, 1fr) auto; gap: 18px; padding: 18px; background: var(--screen); border: 1px solid var(--rule); align-items: start; }
+  .card { transition: border-color var(--t-base), background var(--t-base); position: relative; overflow: hidden; }
+  .card:hover { border-color: var(--rule-strong); }
   .card.current { border-color: color-mix(in oklab, var(--accent) 60%, var(--rule)); box-shadow: inset 2px 0 0 var(--accent); }
+  /* The account in use carries a slow scanning edge. */
+  .card.current::after { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 1px; background: linear-gradient(90deg, transparent, var(--accent), transparent); animation: scan-edge 3.6s var(--ease-in-out) infinite; }
+  @keyframes scan-edge { 0% { transform: translateX(-100%); } 60%, 100% { transform: translateX(100%); } }
+  .option { transition: background var(--t-fast), border-color var(--t-fast), transform var(--t-fast) var(--ease); }
+  .option:hover .icon { color: var(--ink); background: var(--accent-wash); }
+  .option .icon { transition: background var(--t-base), color var(--t-base); }
+  .flap { display: inline-block; animation: flap 420ms var(--ease) both; animation-delay: calc(var(--k) * 45ms); }
+  @keyframes flap { 0% { opacity: 0; transform: rotateX(90deg); } 60% { opacity: 1; transform: rotateX(-12deg); } }
   .info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .name { font-size: 20px; font-weight: 800; font-stretch: 115%; }
   .kind { font-size: 13px; color: var(--ink-3); }

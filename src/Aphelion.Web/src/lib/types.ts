@@ -29,6 +29,7 @@ export interface Settings {
   language: 'auto' | 'zh-Hant' | 'zh-Hans' | 'en';
   theme: 'console' | 'manual' | 'system';
   accent: string;
+  motion: 'system' | 'full' | 'reduced';
   download: { source: SourcePreference; concurrency: number };
   game: {
     memory: MemorySettings;

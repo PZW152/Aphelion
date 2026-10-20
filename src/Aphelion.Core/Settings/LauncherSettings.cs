@@ -58,6 +58,9 @@ public sealed class LauncherSettings
     public string Theme { get; set; } = "console";
 
     public string Accent { get; set; } = "#FF5B14";
+
+    /// <summary>"system" (follow the Windows animation setting), "full" or "reduced".</summary>
+    public string Motion { get; set; } = "system";
     public DownloadSettings Download { get; set; } = new();
     public GameDefaults Game { get; set; } = new();
     public List<GameRootEntry> GameRoots { get; set; } = [];
@@ -77,6 +80,7 @@ public sealed class LauncherSettings
         Game.Resolution.Height = Math.Clamp(Game.Resolution.Height, 240, 16384);
         if (Language is not ("auto" or "zh-Hant" or "zh-Hans" or "en")) Language = "auto";
         if (Theme is not ("console" or "manual" or "system")) Theme = "console";
+        if (Motion is not ("system" or "full" or "reduced")) Motion = "system";
         if (!System.Text.RegularExpressions.Regex.IsMatch(Accent ?? "", "^#[0-9A-Fa-f]{6}$")) Accent = "#FF5B14";
         GameRoots = GameRoots.Where(r => !string.IsNullOrWhiteSpace(r.Path))
             .GroupBy(r => System.IO.Path.GetFullPath(r.Path), StringComparer.OrdinalIgnoreCase)
