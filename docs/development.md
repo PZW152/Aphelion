@@ -11,7 +11,7 @@ pwsh ./build.ps1                 # npm ci → svelte-check → vite build → un
 pwsh ./build.ps1 -SelfContained  # bundle the .NET runtime (larger, no runtime prerequisite)
 ```
 
-Output: `artifacts/publish/Aphelion.exe` (≈2.3 MB, UI embedded) and `WebView2Loader.dll`.
+Output: a single `artifacts/publish/Aphelion.exe` (≈2.4 MB) with the UI and the WebView2 loader embedded.
 
 ## Working on the interface
 
@@ -47,6 +47,7 @@ Results from this machine (Windows 11 26300, x64, 150 % display scaling), 2026-1
 | Desktop app | WebView2 host renders the embedded UI; launch from the ignition button starts the game; live log console; stop from the UI; play time recorded |
 | Modrinth | search, project details, install of Mod Menu resolved Placeholder API and Fabric API automatically; mod icons and metadata read from jars |
 | Crash diagnosis | an invalid JVM option produced the `crash.badJvmArg` finding in the UI |
+| Single file | the exe alone in an empty folder starts and renders; the loader is loaded from `runtime/webview2-loader/`; a tampered copy is detected and rewritten on the next start |
 | Window chrome | drag to move, double-click to maximise/restore, maximise/close buttons, no clipping when maximised, correct size at 150 % scaling |
 | Lifecycle | install (files, Start menu shortcut, Settings › Apps entry, manifest), in-place upgrade, uninstall keeping data, uninstall with `--purge`, temporary uninstaller removes itself |
 | Bugs found by these runs and fixed | Fabric timestamps without a colon in the offset; embedded UI paths with backslashes; ROC-calendar dates in file names under zh-TW; DPI-unaware initial window size; start/exit event race for a JVM that dies instantly; old Forge needing `config/`; self-delete blocked by its own working directory |

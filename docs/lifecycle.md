@@ -16,7 +16,7 @@ Inside the root, folders are split by lifecycle:
 | --- | --- | --- | --- |
 | `config/` | `settings.json`, `accounts.json` (tokens DPAPI-encrypted) | yes | deleted |
 | `minecraft/` | built-in game folder (instances, worlds, mods) | yes | deleted only if the extra box is ticked |
-| `runtime/` | Java runtimes Aphelion downloaded, authlib-injector | yes | deleted |
+| `runtime/` | Java runtimes Aphelion downloaded, authlib-injector, the WebView2 loader unpacked from the exe | yes | deleted |
 | `cache/` | version manifest cache, WebView2 profile | yes | deleted |
 | `temp/` | per-launch natives, installer scratch | cleaned at every start | deleted |
 | `logs/` | launcher logs, newest 10 kept, secrets redacted | yes | deleted |

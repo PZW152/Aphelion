@@ -28,7 +28,7 @@ pwsh ./build.ps1              # UI bundle, checks, unit tests, single-file publi
 ./artifacts/publish/Aphelion.exe
 ```
 
-Running the executable directly works immediately (data goes to `%LOCALAPPDATA%\Aphelion`).
+The build is one file. Running it directly works immediately (data goes to `%LOCALAPPDATA%\Aphelion`).
 **Settings › Data and storage › Install on this PC** copies it to `%LOCALAPPDATA%\Programs\Aphelion`
 and registers it in Windows Settings › Apps. To run portably, put an empty file named
 `Aphelion.portable` next to the executable.

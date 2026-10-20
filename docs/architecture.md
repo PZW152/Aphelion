@@ -19,8 +19,9 @@ Dependencies point one way: `Web → (bridge) → App → Core`. Core never refe
 | Choice | Why |
 | --- | --- |
 | **.NET 10 (C#)** for the engine | Mature HTTP, JSON, ZIP, hashing, process and P/Invoke support in the base library, so the engine has zero third-party dependencies. Long-term-support runtime. |
-| **WebView2 + Svelte** for the interface | The console design (variable-width type, grids, SVG orbit map, layered surfaces) is far cheaper to build and keep consistent in CSS than in XAML. WebView2 ships with Windows 11 and is shared system-wide, so the app stays small (single exe + loader DLL). Svelte compiles to plain DOM code (~100 KB gzip) with no runtime framework. |
+| **WebView2 + Svelte** for the interface | The console design (variable-width type, grids, SVG orbit map, layered surfaces) is far cheaper to build and keep consistent in CSS than in XAML. WebView2 ships with Windows 11 and is shared system-wide, so the app stays small: one 2.4 MB executable. Svelte compiles to plain DOM code (~100 KB gzip) with no runtime framework. |
 | **WinForms host** | The host only owns a window and a WebView2 control; WinForms is the lightest way to do that. The native caption is removed with `WM_NCCALCSIZE` while keeping the frame, so snapping, resizing and shadows stay native. |
+| **One file** | `WebView2Loader.dll` is native and Windows only loads native DLLs from disk, so it is embedded in the exe, written to `runtime/webview2-loader/<sha256>/` inside the data root (never `%TEMP%`), verified against the embedded bytes before each load, and passed to WebView2 with `SetLoaderDllFolderPath`. Older copies are removed at startup. |
 | **No installer framework** | The executable installs, upgrades and uninstalls itself per user (see [lifecycle.md](lifecycle.md)), so there is no WiX/Inno toolchain and nothing needs administrator rights. |
 
 Trade-off accepted: WebView2 uses more memory than a native XAML UI (tens of MB). The launcher is idle while the game runs, so this does not compete with the game.

@@ -28,10 +28,12 @@
   <ItemGroup>
     <EmbeddedResource Include="$(WebDist)**\*" LogicalName="ui/%(RecursiveDir)%(Filename)%(Extension)" Condition="Exists('$(WebDist)index.html')" />
     <Content Include="Assets\aphelion.ico" />
+    <!-- The native WebView2 loader travels inside the exe and is unpacked into the data root at startup (Platform/WebView2Loader.cs). -->
+    <EmbeddedResource Include="$(PkgMicrosoft_Web_WebView2)\runtimes\$(RuntimeIdentifier)\native\WebView2Loader.dll" LogicalName="native/WebView2Loader.dll" />
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" GeneratePathProperty="true" />
   </ItemGroup>
 
   <!-- The WebView2 package also references its WPF control; this WinForms app does not use it. -->
@@ -41,8 +43,10 @@
     </ItemGroup>
   </Target>
 
-  <!-- WebView2Loader.dll is also copied beside the exe by the package, so the RID folder is a duplicate. -->
-  <Target Name="RemoveDuplicateLoader" AfterTargets="Publish" Condition="Exists('$(PublishDir)WebView2Loader.dll')">
+  <!-- The loader is embedded, so the copies the package places in the publish folder are not shipped:
+       the published app is exactly one file. -->
+  <Target Name="RemovePublishedLoader" AfterTargets="Publish">
+    <Delete Files="$(PublishDir)WebView2Loader.dll" />
     <RemoveDir Directories="$(PublishDir)runtimes" />
   </Target>
 

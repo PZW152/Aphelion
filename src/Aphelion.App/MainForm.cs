@@ -72,6 +72,7 @@ internal sealed class MainForm : Form, IHostWindow
 
     private async Task InitializeWebViewAsync()
     {
+        WebView2Loader.Prepare(_services.Paths);
         var options = new CoreWebView2EnvironmentOptions
         {
             Language = System.Globalization.CultureInfo.CurrentUICulture.Name,
