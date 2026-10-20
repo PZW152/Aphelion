@@ -1,0 +1,46 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!-- Desktop shell: a WinForms window hosting the WebView2 UI, plus Windows integration (DPAPI, shell, installer). -->
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <RootNamespace>Aphelion.App</RootNamespace>
+    <AssemblyName>Aphelion</AssemblyName>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\aphelion.ico</ApplicationIcon>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+    <!-- Single-file, framework-dependent publish (requires the .NET 10 Desktop Runtime). -->
+    <PublishSingleFile>true</PublishSingleFile>
+    <SelfContained>false</SelfContained>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <DebugType>embedded</DebugType>
+    <!-- The UI build output is embedded; skip when building the shell alone (tests, CI without Node). -->
+    <WebDist>$(MSBuildThisFileDirectory)..\Aphelion.Web\dist\</WebDist>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Aphelion.Core\Aphelion.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <EmbeddedResource Include="$(WebDist)**\*" LogicalName="ui/%(RecursiveDir)%(Filename)%(Extension)" Condition="Exists('$(WebDist)index.html')" />
+    <Content Include="Assets\aphelion.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.4258.31" />
+  </ItemGroup>
+
+  <!-- The WebView2 package also references its WPF control; this WinForms app does not use it. -->
+  <Target Name="RemoveWebView2Wpf" BeforeTargets="ResolveAssemblyReferences">
+    <ItemGroup>
+      <Reference Remove="@(Reference)" Condition="'%(Filename)' == 'Microsoft.Web.WebView2.Wpf'" />
+    </ItemGroup>
+  </Target>
+
+  <Target Name="WarnMissingUi" BeforeTargets="Build" Condition="!Exists('$(WebDist)index.html')">
+    <Warning Text="UI bundle not found at $(WebDist). Run 'npm run build' in src/Aphelion.Web (build.ps1 does this)." Code="APH001" />
+  </Target>
+</Project>
