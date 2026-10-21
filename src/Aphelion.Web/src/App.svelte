@@ -15,6 +15,15 @@
 
   let failed = $state<string | null>(null);
 
+  // The console powers on once, when it first appears: rows, lamps and the main screen come up in sequence (app.css › data-boot).
+  let booted = false;
+  $effect(() => {
+    if (!app.ready || booted) return;
+    booted = true;
+    document.documentElement.dataset.boot = '';
+    setTimeout(() => delete document.documentElement.dataset.boot, 1800);
+  });
+
   onMount(() => {
     start().catch((e) => {
       failed = String(e?.message ?? e);
@@ -64,6 +73,6 @@
 
 <style>
   .shell { height: 100%; display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); }
-  main { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  main { min-width: 0; min-height: 0; display: flex; flex-direction: column; overflow: hidden; view-transition-name: page; }
   .boot { height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; color: var(--muted); }
 </style>

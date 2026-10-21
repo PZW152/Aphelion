@@ -18,7 +18,7 @@ Inside the root, folders are split by lifecycle:
 | `minecraft/` | built-in game folder (instances, worlds, mods) | yes | deleted only if the extra box is ticked |
 | `runtime/` | Java runtimes Aphelion downloaded, authlib-injector, the WebView2 loader unpacked from the exe | yes | deleted |
 | `cache/` | version manifest cache, WebView2 profile | yes | deleted |
-| `temp/` | per-launch natives, installer scratch | cleaned at every start | deleted |
+| `temp/` | per-launch natives, installer scratch, downloaded updates (`update-<version>/`) | cleaned at every start | deleted |
 | `logs/` | launcher logs, newest 10 kept, secrets redacted | yes | deleted |
 
 Game folders you add yourself (for example an existing `D:\Games\.minecraft`) are referenced from
@@ -54,9 +54,52 @@ without being rewritten silently.
 
 The application identity (`AppInfo.AppId`) never changes, so upgrades always find the existing installation.
 
+## Updates
+
+Settings › About shows the installed version and any newer release (checked at start and every 6 hours
+unless turned off; see [architecture.md](architecture.md#self-update) for how a release is trusted).
+*Download and restart*:
+
+1. Downloads the new executable into `temp/update-<version>/` and checks its size and SHA-256 against the signed manifest.
+2. Starts it with `--apply-update <pid> <exe> <old version>` and exits.
+3. The new executable waits for the old process to end, then upgrades in place:
+   - an installed copy through the normal per-user install (program folder staged and swapped, Start menu and
+     Settings › Apps entry refreshed);
+   - a loose or portable copy by renaming the old executable to `Aphelion.exe.old` and copying itself into its
+     place; if that fails, the old file is renamed back and the old version starts as before.
+4. The upgraded launcher starts with `--after-update`, shows *Updated to …*, and removes `Aphelion.exe.old`
+   and the download folder.
+
+Data, settings, accounts and the portable marker are never touched by an update. The update is refused while a
+game or a download is running.
+
 ## Portable mode
 
-Create an empty `Aphelion.portable` beside the executable. All data then goes to the `Data` folder next to
-it, and the whole folder can be moved or copied. Microsoft and Yggdrasil tokens are encrypted for the
-current Windows user, so on another machine those accounts ask to sign in again; nothing else is lost.
-Portable copies are not registered with Windows and are removed by deleting their folder.
+A file named `Aphelion.portable` beside the executable puts all data in the `Data` folder next to it, so
+the whole folder can be moved or copied. Paths inside the data folder are stored relative to it
+(`DataPath`), so a portable folder keeps working when its drive letter changes. Microsoft and Yggdrasil
+tokens are encrypted for the current Windows user, so on another machine those accounts ask to sign in
+again; nothing else is lost. Portable copies are not registered with Windows and are removed by deleting
+their folder.
+
+### Switching modes
+
+Settings › Data and storage › click the other mode. The dialog shows where the data goes, what moves and
+how much, and whether the move is a rename (same drive, instant) or a copy (another drive).
+
+| From → to | Program | Data |
+| --- | --- | --- |
+| Standard (not installed) → portable | stays where it is | moves to `Data` beside it; the marker is written |
+| Standard (installed) → portable | copied to a folder you choose (an installed copy must stay in Programs) | moves to `Data` in that folder |
+| Portable → standard | stays where it is; the marker is removed | moves to `%LOCALAPPDATA%\Aphelion` |
+
+What moves: settings and accounts always; the built-in game folder and downloaded Java when ticked
+(a game folder left behind stays registered at its old path). Cache, temp and logs are not moved; the next
+start recreates them, and removes the old ones once the previous process has exited. The switch is refused
+while a game or a download runs, when the destination already holds Aphelion settings or accounts, or when
+the destination is inside the current data folder.
+
+Failure never loses data (`DataMigration`): on one drive, folders are renamed and renamed back if a later
+one fails; across drives, everything is copied first and the originals are deleted only after every copy
+succeeded, and a failed copy is removed again. Aphelion then restarts from the new place with
+`--after-switch <pid> <old data root>`.

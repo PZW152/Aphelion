@@ -32,8 +32,7 @@ public sealed class GameLauncher(
     AccountService accounts,
     JavaManager java,
     MojangMeta meta,
-    Func<Downloader> downloaderFactory,
-    DownloadSources sources)
+    Func<Downloader> downloaderFactory)
 {
     private readonly ConcurrentDictionary<string, GameSession> _sessions = new();
 
@@ -91,7 +90,7 @@ public sealed class GameLauncher(
         var identity = await accounts.PrepareLaunchAsync(account, ct).ConfigureAwait(false);
         string? injector = null;
         if (identity.YggdrasilServer is not null)
-            injector = await AuthlibInjector.EnsureAsync(Path.Combine(paths.Runtimes, "authlib-injector"), sources, ct).ConfigureAwait(false);
+            injector = await AuthlibInjector.EnsureAsync(Path.Combine(paths.Runtimes, "authlib-injector"), ct).ConfigureAwait(false);
 
         // 4. Natives.
         progress?.Report(new StageProgress(LaunchStages.Natives));

@@ -30,6 +30,9 @@ public sealed class AppPaths
     public const string PortableDataFolderName = "Data";
     public const string HomeEnvironmentVariable = "APHELION_HOME";
 
+    /// <summary>Development only: stands in for %LOCALAPPDATA%\Aphelion, so mode switching can be exercised without real data.</summary>
+    public const string StandardRootVariable = "APHELION_STANDARD_ROOT";
+
     public RunMode Mode { get; }
     public string Root { get; }
     public string ExecutableDirectory { get; }
@@ -68,7 +71,9 @@ public sealed class AppPaths
     }
 
     public static string StandardRoot() =>
-        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), AppInfo.Name);
+        Environment.GetEnvironmentVariable(StandardRootVariable) is { Length: > 0 } dev
+            ? Path.GetFullPath(dev)
+            : Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData, Environment.SpecialFolderOption.Create), AppInfo.Name);
 
     public static AppPaths ForRoot(string root, RunMode mode = RunMode.Override) => new(mode, root, AppContext.BaseDirectory);
 
@@ -87,4 +92,17 @@ public sealed class AppPaths
         var d = Path.GetFullPath(directory).TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
         return p.StartsWith(d, StringComparison.OrdinalIgnoreCase);
     }
+}
+
+/// <summary>
+/// Paths inside the data root are stored relative to it, so a portable folder keeps working after it is moved
+/// or its drive letter changes; everything else stays absolute.
+/// </summary>
+public static class DataPath
+{
+    public static string Contract(string root, string path) =>
+        Path.IsPathFullyQualified(path) && AppPaths.IsUnder(path, root) ? Path.GetRelativePath(root, path) : path;
+
+    public static string Expand(string root, string path) =>
+        string.IsNullOrWhiteSpace(path) || Path.IsPathRooted(path) ? path : Path.GetFullPath(Path.Combine(root, path));
 }

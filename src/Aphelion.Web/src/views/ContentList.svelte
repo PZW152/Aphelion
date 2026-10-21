@@ -6,6 +6,9 @@
   import { bytes } from '../lib/format';
   import type { ContentFolder, ContentUpdate, Instance, LocalContent } from '../lib/types';
   import Icon from '../components/Icon.svelte';
+  import { flip } from 'svelte/animate';
+  import { fade } from 'svelte/transition';
+  import { hatch, reduced, rise, slide, stagger } from '../lib/motion';
 
   let { instance, folder }: { instance: Instance; folder: ContentFolder } = $props();
 
@@ -131,7 +134,7 @@
     </div>
 
     {#if updates && updates.length > 0}
-      <div class="updates screen">
+      <div class="updates screen" transition:hatch>
         <span class="t-label">{t('content.updates', { n: updates.length })}</span>
         {#each updates as u (u.fileName)}
           <div class="update">
@@ -144,13 +147,17 @@
     {/if}
 
     {#if items === null}
-      <div class="bar indeterminate"><span></span></div>
+      <ul class="screen list" aria-hidden="true">
+        {#each Array(6) as _, n (n)}
+          <li class="item"><span class="noicon skeleton"></span><span class="meta"><span class="sk-line skeleton" style:width="{40 + ((n * 37) % 35)}%"></span><span class="sk-line short skeleton"></span></span></li>
+        {/each}
+      </ul>
     {:else if items.length === 0}
-      <p class="empty">{t('content.empty.' + folder)}</p>
+      <p class="empty" in:rise>{t('content.empty.' + folder)}</p>
     {:else}
       <ul class="screen list">
-        {#each shown as item (item.fileName)}
-          <li class="item" class:off={!item.enabled}>
+        {#each shown as item, n (item.fileName.replace(/\.disabled$/i, ''))}
+          <li class="item" class:off={!item.enabled} in:rise={{ delay: stagger(n), y: 6 }} out:slide={{ x: -24, duration: 180 }} animate:flip={{ duration: reduced() ? 0 : 240 }}>
             {#if item.iconDataUrl}<img src={item.iconDataUrl} alt="" width="36" height="36" />{:else}<span class="noicon"><Icon name={folder === 'mods' ? 'cube' : folder === 'shaderpacks' ? 'sun' : 'image'} size={18} /></span>{/if}
             <div class="meta">
               <span class="name ellipsis">{item.name ?? item.fileName}</span>
@@ -164,7 +171,7 @@
       </ul>
     {/if}
   {/if}
-  {#if dragging}<div class="drop"><span>{t('content.dropHere', { name: instance.name })}</span></div>{/if}
+  {#if dragging}<div class="drop" transition:fade={{ duration: reduced() ? 0 : 140 }}><span>{t('content.dropHere', { name: instance.name })}</span></div>{/if}
 </div>
 
 <style>
@@ -177,13 +184,18 @@
   .item:last-child { border-bottom: 0; }
   .item img { image-rendering: pixelated; }
   .noicon { width: 36px; height: 36px; display: grid; place-items: center; background: var(--panel-raised); color: var(--muted); }
-  .off img, .off .noicon { opacity: 0.4; }
+  .item img, .item .noicon, .item .name, .item .desc { transition: opacity var(--t-base), color var(--t-base), filter var(--t-base); }
+  .off img, .off .noicon { opacity: 0.4; filter: grayscale(1); }
   .off .name { color: var(--muted); }
+  .item:hover { background: color-mix(in oklab, var(--panel-raised) 50%, transparent); }
+  .sk-line { display: block; height: 10px; }
+  .sk-line.short { width: 70%; height: 8px; opacity: 0.6; }
   .meta { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
   .name { font-size: 14px; font-weight: 600; }
   .desc { font-size: 12px; color: var(--muted); }
   .ver { font-size: 12px; color: var(--muted); }
   .updates { padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; }
   .update { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; gap: 12px; align-items: center; font-size: 13px; }
-  .drop { position: absolute; inset: 8px; border: 2px dashed var(--accent); background: color-mix(in oklab, var(--panel) 80%, transparent); display: grid; place-items: center; font-size: 16px; font-weight: 700; pointer-events: none; }
+  .drop { position: absolute; inset: 8px; border: 2px dashed var(--accent); animation: drop-pulse 1.2s var(--ease) infinite; background: color-mix(in oklab, var(--panel) 80%, transparent); display: grid; place-items: center; font-size: 16px; font-weight: 700; pointer-events: none; }
+  @keyframes drop-pulse { 50% { border-color: color-mix(in oklab, var(--accent) 40%, transparent); } }
 </style>

@@ -7,6 +7,10 @@
   import type { StorageInfo } from '../lib/types';
   import ViewHeader from '../components/ViewHeader.svelte';
   import Icon from '../components/Icon.svelte';
+  import ModeSwitch from './ModeSwitch.svelte';
+  import NetworkCheck from './NetworkCheck.svelte';
+  import UpdatePanel from './UpdatePanel.svelte';
+  import { glide, viewTransition } from '../lib/motion';
 
   const sections = ['appearance', 'download', 'java', 'game', 'accounts', 'storage', 'about'] as const;
   const accents = ['#FF5B14', '#F2B33D', '#4FA3FF', '#6FCF97', '#B48CFF', '#E6ECE8'];
@@ -15,6 +19,8 @@
   let scroller: HTMLDivElement;
   let storage = $state<StorageInfo | null>(null);
   let scanning = $state(false);
+  let switchTo = $state<'standard' | 'portable' | null>(null);
+  let switchOpen = $state(false);
 
   const s = $derived(app.settings!);
   const maxMb = $derived(Math.max(2048, Math.floor(((app.memory?.totalMb ?? 16384) * 0.75) / 256) * 256));
@@ -40,6 +46,14 @@
       const el = document.getElementById('set-' + id);
       if (el && el.getBoundingClientRect().top - scroller.getBoundingClientRect().top < 120) active = id;
     }
+  }
+
+  /** The new theme opens as a circle from the pressed control (motion.ts › viewTransition). */
+  function switchTheme(theme: string, e: MouseEvent) {
+    // Keyboard activation reports (0, 0); start from the button itself then.
+    const box = (e.currentTarget as HTMLElement).getBoundingClientRect();
+    const origin = e.clientX || e.clientY ? { x: e.clientX, y: e.clientY } : { x: box.left + box.width / 2, y: box.top + box.height / 2 };
+    viewTransition(() => updateSettings({ theme }), 'theme', origin);
   }
 
   async function rescan() {
@@ -79,10 +93,12 @@
 
 <ViewHeader title={t('settings.title')} />
 
+{#if switchTo}<ModeSwitch bind:open={switchOpen} to={switchTo} />{/if}
+
 <div class="layout">
-  <nav class="index" aria-label={t('settings.title')}>
+  <nav class="index" aria-label={t('settings.title')} use:glide={{ axis: 'y' }}>
     {#each sections as id (id)}
-      <button class:on={active === id} onclick={() => jump(id)}>{t('settings.section.' + id)}</button>
+      <button class:on={active === id} aria-current={active === id ? 'page' : undefined} onclick={() => jump(id)}>{t('settings.section.' + id)}</button>
     {/each}
   </nav>
 
@@ -101,7 +117,7 @@
         <span class="label">{t('settings.theme')}</span>
         <div class="seg">
           {#each ['console', 'manual', 'system'] as v (v)}
-            <button aria-pressed={s.theme === v} onclick={() => updateSettings({ theme: v })}>{t('settings.theme.' + v)}</button>
+            <button aria-pressed={s.theme === v} onclick={(e) => switchTheme(v, e)}>{t('settings.theme.' + v)}</button>
           {/each}
         </div>
       </div>
@@ -113,19 +129,25 @@
           {/each}
         </div>
       </div>
+      <div class="row top">
+        <span class="label">{t('settings.motion')}</span>
+        <div class="stack">
+          <div class="seg">
+            {#each ['system', 'full', 'reduced'] as v (v)}
+              <button aria-pressed={(s.motion ?? 'system') === v} onclick={() => updateSettings({ motion: v })}>{t('settings.motion.' + v)}</button>
+            {/each}
+          </div>
+          <p class="hint">{t('settings.motion.hint')}</p>
+        </div>
+      </div>
     </section>
 
     <section id="set-download">
       <h2 class="t-section">{t('settings.section.download')}</h2>
-      <div class="cards three">
-        {#each ['auto', 'official', 'mirror'] as v (v)}
-          <button class="card" aria-pressed={s.download.source === v} onclick={() => updateSettings({ download: { source: v } })}>
-            <strong>{t('settings.source.' + v)}</strong>
-            <span>{v === 'auto' ? t('settings.source.auto.hint') : v === 'official' ? 'piston-data.mojang.com · Forge · Fabric' : 'bmclapi2.bangbang93.com'}</span>
-          </button>
-        {/each}
+      <div class="cards two">
+        <div class="card static"><strong>{t('settings.download.official')}</strong><span>{t('settings.download.official.body')}</span></div>
+        <div class="card static"><strong>{t('settings.download.speed')}</strong><span>{t('settings.download.speed.body')}</span></div>
       </div>
-      <p class="hint">{t('settings.source.hint')}</p>
       <div class="row">
         <span class="label">{t('settings.concurrency')}</span>
         <div class="slider">
@@ -133,6 +155,7 @@
           <span class="tnum value">{s.download.concurrency}</span>
         </div>
       </div>
+      <NetworkCheck />
     </section>
 
     <section id="set-java">
@@ -229,11 +252,14 @@
     <section id="set-storage">
       <h2 class="t-section">{t('settings.section.storage')}</h2>
       <div class="cards two">
-        {#each ['standard', 'portable'] as m (m)}
-          <div class="card static" aria-current={app.info?.mode === m}>
-            <strong>{t('settings.mode.' + m)}{app.info?.mode === m ? ` · ${t('settings.mode.current')}` : ''}</strong>
+        {#each ['standard', 'portable'] as const as m (m)}
+          {@const current = app.info?.mode === m}
+          <button class="card mode" aria-current={current} disabled={current || app.info?.mode === 'override'}
+            onclick={() => { switchTo = m; switchOpen = true; }}>
+            <strong><span class="lamp {current ? 'ok' : 'hollow'}"></span>{t('settings.mode.' + m)}{current ? ` · ${t('settings.mode.current')}` : ''}</strong>
             <span>{t('settings.mode.' + m + '.hint')}</span>
-          </div>
+            {#if !current && app.info?.mode !== 'override'}<span class="go">{t('settings.mode.switch')}<Icon name="chevronRight" size={14} /></span>{/if}
+          </button>
         {/each}
       </div>
       {#if app.info?.mode === 'override'}<p class="hint">{t('settings.mode.override.hint')}</p>{/if}
@@ -268,6 +294,7 @@
 
     <section id="set-about">
       <h2 class="t-section">{t('settings.section.about')}</h2>
+      <UpdatePanel />
       <dl class="telemetry">
         <dt>{t('settings.about.version')}</dt><dd>Aphelion {app.info?.version}</dd>
         <dt>{t('settings.about.runtime')}</dt><dd>.NET {app.info?.runtime} · {app.info?.os}</dd>
@@ -282,7 +309,10 @@
 <style>
   .layout { flex: 1; min-height: 0; display: grid; grid-template-columns: 200px minmax(0, 1fr); }
   .index { padding: 20px 0 0 28px; display: flex; flex-direction: column; gap: 2px; }
-  .index button { all: unset; cursor: pointer; padding: 8px 0; font-size: 14px; color: var(--ink-3); }
+  .index { position: relative; }
+  .index :global(.glide-y) { left: 16px; width: 2px; top: 0; background: var(--accent); }
+  .index button { all: unset; cursor: pointer; padding: 8px 0; font-size: 14px; color: var(--ink-3); transition: color var(--t-fast), transform var(--t-base) var(--ease); }
+  .index button.on { transform: translateX(4px); }
   .index button:hover { color: var(--ink); }
   .index button.on { color: var(--accent-ink); font-weight: 700; }
   .index button:focus-visible { outline: 2px solid var(--accent); }
@@ -294,17 +324,29 @@
   .row > .label { font-size: 14px; color: var(--ink-3); }
   .row > :last-child { justify-self: start; }
   .stack { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+  .stack > .seg { align-self: flex-start; }
   .hint { font-size: 12px; color: var(--muted); line-height: 1.55; }
   .swatches { display: flex; gap: 6px; }
-  .swatch { width: 28px; height: 28px; border: 0; cursor: pointer; padding: 0; outline-offset: 2px; }
+  .swatch { width: 28px; height: 28px; border: 0; cursor: pointer; padding: 0; outline-offset: 2px; transition: transform var(--t-base) var(--ease-spring), outline-offset var(--t-base) var(--ease); }
+  .swatch:hover { transform: scale(1.12); }
+  .swatch[aria-pressed='true'] { outline-offset: 3px; }
   .swatch[aria-pressed='true'] { outline: 2px solid var(--ink); }
   .cards { display: grid; gap: 8px; }
-  .cards.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .cards.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card { display: flex; flex-direction: column; gap: 6px; padding: 14px; background: var(--panel-raised); border: 1px solid var(--rule); text-align: left; font-size: 13px; color: var(--muted); line-height: 1.5; }
   button.card { cursor: pointer; }
   .card strong { font-size: 15px; color: var(--ink); }
-  .card[aria-pressed='true'], .card[aria-current='true'] { border: 1.5px solid var(--accent); }
+  .card[aria-current='true'] { border: 1.5px solid var(--accent); }
+  button.card { transition: border-color var(--t-fast), background var(--t-fast), transform var(--t-fast) var(--ease); }
+  button.card:hover:not(:disabled) { border-color: var(--rule-strong); background: color-mix(in oklab, var(--panel-raised) 70%, var(--accent-wash)); }
+  button.card:active:not(:disabled) { transform: translateY(1px); }
+  button.card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .card.mode:disabled { cursor: default; color: var(--muted); }
+  .card.mode strong { display: flex; align-items: center; gap: 8px; }
+  .card.mode .lamp { width: 7px; height: 7px; }
+  .go { margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; color: var(--accent-ink); font-weight: 600; }
+  .go :global(svg) { transition: transform var(--t-base) var(--ease); }
+  button.card:hover .go :global(svg) { transform: translateX(3px); }
   .slider { display: flex; align-items: center; gap: 16px; width: 100%; max-width: 420px; }
   .slider input { flex: 1; accent-color: var(--accent); }
   .value { font-weight: 700; min-width: 64px; }
@@ -330,5 +372,7 @@
     background: repeating-linear-gradient(-45deg, transparent 0 12px, color-mix(in oklab, var(--accent) 6%, transparent) 12px 24px); }
   .uninstall p { font-size: 13px; line-height: 1.6; color: var(--ink-3); max-width: 60em; }
   .small { font-size: 12px; }
-  @media (max-width: 1150px) { .cards.three { grid-template-columns: 1fr; } .row { grid-template-columns: 1fr; } }
+  @media (max-width: 1240px) and (min-width: 1181px) { .row { grid-template-columns: 160px minmax(0, 1fr); } }
+  @media (max-width: 960px) { .row { grid-template-columns: 1fr; gap: 8px; } }
+  @media (max-width: 1040px) { .layout { grid-template-columns: 160px minmax(0, 1fr); } .index { padding-left: 22px; } .scroll { padding-right: 28px; } .cards.two { grid-template-columns: 1fr; } }
 </style>

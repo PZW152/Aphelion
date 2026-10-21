@@ -9,6 +9,8 @@
   import Dialog from '../components/Dialog.svelte';
   import ContentList from './ContentList.svelte';
   import InstanceSettings from './InstanceSettings.svelte';
+  import { flip } from 'svelte/animate';
+  import { glide, reduced, rise, slide, stagger, ticker } from '../lib/motion';
 
   let query = $state('');
   let currentId = $state<string | null>(app.focusInstance ?? app.settings?.selectedInstance ?? null);
@@ -44,7 +46,16 @@
   let renameError = $state<string | null>(null);
   let deleteOpen = $state(false);
 
+  // A tab's content arrives from the side the tab sits on.
+  let tabDir = $state(0);
+  function pickTab(key: string) {
+    const order = tabs.map((x) => x[0]);
+    tabDir = Math.sign(order.indexOf(key) - order.indexOf(tab));
+    tab = key;
+  }
+
   function pick(id: string) {
+    tabDir = 0;
     currentId = id;
     selectInstance(id);
   }
@@ -133,10 +144,10 @@
         <input class="input" placeholder={t('instances.search')} bind:value={query} />
       </label>
     </div>
-    <ul class="items">
-      {#each filtered as i (i.id)}
-        <li>
-          <button class="item" class:sel={current?.id === i.id} onclick={() => pick(i.id)}>
+    <ul class="items" use:glide={{ axis: 'y' }}>
+      {#each filtered as i, n (i.id)}
+        <li in:slide={{ delay: stagger(n) }} out:slide={{ duration: 140 }} animate:flip={{ duration: reduced() ? 0 : 240 }}>
+          <button class="item" class:sel={current?.id === i.id} aria-current={current?.id === i.id ? 'true' : undefined} onclick={() => pick(i.id)}>
             <span class="patch" style:--c={i.color}>{i.name.slice(0, 1).toUpperCase()}</span>
             <span class="meta">
               <span class="iname ellipsis">{i.name}</span>
@@ -159,21 +170,22 @@
     {#if current}
       <header class="detail-head drag">
         <div class="titles">
-          <h2 class="t-identity title ellipsis" title={current.name}>{current.name}</h2>
+          {#key current.id}<h2 class="t-identity title ellipsis" title={current.name} in:ticker>{current.name}</h2>{/key}
           <span class="t-label ellipsis">versions\{current.id} · {current.gameVersion ?? '?'} · {t('loader.' + current.loader.kind)} {current.loader.version ?? ''}</span>
         </div>
         <div class="head-actions">
-          {#if current.loader.kind !== 'vanilla'}<button class="btn" onclick={exportPack}>{t('instances.export')}</button>{/if}
+          {#if current.loader.kind !== 'vanilla'}<button class="btn export" onclick={exportPack} title={t('instances.export')}><Icon name="archive" size={14} /><span class="lbl">{t('instances.export')}</span></button>{/if}
           <button class="btn primary" disabled={running || !!current.error} onclick={() => launch(current!)}><Icon name="play" size={14} />{t('instances.launch')}</button>
         </div>
       </header>
-      <div class="tabs" role="tablist">
+      <div class="tabs" role="tablist" use:glide>
         {#each tabs as [key, label, n] (key)}
-          <button role="tab" aria-selected={tab === key} onclick={() => (tab = key)}>{label}{#if n != null}<span class="count">{n}</span>{/if}</button>
+          <button role="tab" aria-selected={tab === key} onclick={() => pickTab(key)}>{label}{#if n != null}<span class="count">{n}</span>{/if}</button>
         {/each}
       </div>
 
-      <div class="pane">
+      {#key current.id + tab}
+      <div class="pane" in:slide={{ x: tabDir * 18, duration: 280 }}>
         {#if tab === 'overview'}
           <div class="overview">
             {#if current.error}<p class="broken"><Icon name="alert" />{t('launch.broken', { error: current.error })}</p>{/if}
@@ -202,16 +214,14 @@
             </div>
           </div>
         {:else if tab === 'mods' || tab === 'resourcepacks' || tab === 'shaderpacks'}
-          {#key current.id + tab}
-            <ContentList instance={current} folder={tab as ContentFolder} />
-          {/key}
+          <ContentList instance={current} folder={tab as ContentFolder} />
         {:else if tab === 'saves'}
           {#if worlds.length === 0}
             <p class="empty">{t('saves.empty')}</p>
           {:else}
             <ul class="worlds">
-              {#each worlds as w (w.folder)}
-                <li class="world">
+              {#each worlds as w, n (w.folder)}
+                <li class="world" in:rise={{ delay: stagger(n), y: 6 }}>
                   {#if w.iconDataUrl}<img src={w.iconDataUrl} alt="" width="48" height="48" />{:else}<span class="noicon"><Icon name="globeGrid" size={20} /></span>{/if}
                   <div class="meta">
                     <span class="iname">{w.name}</span>
@@ -223,9 +233,10 @@
             </ul>
           {/if}
         {:else if tab === 'settings'}
-          {#key current.id}<InstanceSettings instance={current} />{/key}
+          <InstanceSettings instance={current} />
         {/if}
       </div>
+      {/key}
     {:else}
       <div class="drag head-spacer"></div>
       <div class="empty">
@@ -257,7 +268,7 @@
 </Dialog>
 
 <style>
-  .split { flex: 1; min-height: 0; display: grid; grid-template-columns: 360px minmax(0, 1fr); }
+  .split { flex: 1; min-height: 0; display: grid; grid-template-columns: clamp(248px, 28vw, 360px) minmax(0, 1fr); }
   .list { border-right: 1px solid var(--rule); display: flex; flex-direction: column; min-height: 0; }
   .list-head { height: var(--header-h); flex: none; display: flex; align-items: center; justify-content: space-between; padding: 0 20px 0 28px; border-bottom: 1px solid var(--rule); }
   .tools { padding: 10px 20px 10px 28px; border-bottom: 1px solid var(--rule); display: flex; flex-direction: column; gap: 8px; }
@@ -266,7 +277,14 @@
   .items { overflow: auto; flex: 1; }
   .item { all: unset; box-sizing: border-box; width: 100%; cursor: pointer; display: grid; grid-template-columns: 40px minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 13px 20px 13px 28px; border-bottom: 1px solid var(--rule-faint); }
   .item:hover { background: var(--panel-raised); }
-  .item.sel { background: var(--panel-raised); box-shadow: inset 2px 0 0 var(--accent); }
+  /* The selection is one bar that travels between rows (motion.ts › glide), as in the rail. */
+  .items { position: relative; }
+  .items :global(.glide-y) { left: 0; right: 0; top: 0; background: var(--panel-raised); box-shadow: inset 2px 0 0 var(--accent); z-index: 0; }
+  .items li { position: relative; z-index: 1; }
+  .item.sel:hover { background: transparent; }
+  .patch { transition: background var(--t-base), transform var(--t-base) var(--ease-spring); }
+  .item:hover .patch { background: color-mix(in oklab, var(--c) 12%, transparent); }
+  .item.sel .patch { background: color-mix(in oklab, var(--c) 22%, transparent); transform: scale(1.06); }
   .item:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
   .patch { width: 40px; height: 40px; border-radius: 50%; border: 1.5px solid var(--c); color: var(--c); display: grid; place-items: center; font-weight: 800; font-size: 16px; }
   .meta { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
@@ -293,4 +311,13 @@
   .world img { image-rendering: pixelated; }
   .noicon { width: 48px; height: 48px; display: grid; place-items: center; background: var(--screen); border: 1px solid var(--rule); color: var(--muted); }
   .error { color: var(--warning); font-size: 13px; }
+  .tabs { overflow-x: auto; scrollbar-width: none; }
+  /* Narrow windows: the export action keeps only its glyph, so the instance name keeps its room. */
+  @media (max-width: 1040px) {
+    .export .lbl { display: none; }
+    .title { font-size: 22px; }
+    .list-head, .tools, .item { padding-left: 20px; }
+    .detail-head, .overview { padding-left: 22px; }
+    .op { flex-wrap: wrap; gap: 10px 24px; }
+  }
 </style>

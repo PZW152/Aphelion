@@ -15,6 +15,12 @@ public static class AppInfo
         ?? typeof(AppInfo).Assembly.GetName().Version?.ToString(3)
         ?? "0.0.0";
 
+    /// <summary>Where releases are published. Each holds update.json and update.json.sig (see Update.UpdateService).</summary>
+    public static IReadOnlyList<string> UpdateChannels =>
+        Environment.GetEnvironmentVariable("APHELION_UPDATE_URL") is { Length: > 0 } dev
+            ? [dev.TrimEnd('/')]
+            : ["https://github.com/PZW152/Aphelion/releases/latest/download"];
+
     /// <summary>User agent sent with every request (Modrinth requires an identifying UA).</summary>
     public static string UserAgent => $"{Name}/{Version} (desktop launcher)";
 }

@@ -19,9 +19,32 @@ public static partial class JavaProbe
         foreach (var name in OperatingSystem.IsWindows() ? new[] { "javaw.exe", "java.exe" } : ["java"])
         {
             var p = Path.Combine(home, "bin", name);
-            if (File.Exists(p)) return p;
+            if (File.Exists(p) && (!OperatingSystem.IsWindows() || IsWindowsExecutable(p))) return p;
         }
         return null;
+    }
+
+    /// <summary>
+    /// Whether the file is a Windows PE image. Starting a damaged or truncated java.exe does not simply fail:
+    /// Windows shows a modal "unsupported 16-bit application" box that blocks the caller, so such files are never run.
+    /// </summary>
+    public static bool IsWindowsExecutable(string path)
+    {
+        try
+        {
+            using var f = File.OpenRead(path);
+            Span<byte> dos = stackalloc byte[64];
+            if (f.ReadAtLeast(dos, dos.Length, throwOnEndOfStream: false) < dos.Length || dos[0] != 'M' || dos[1] != 'Z') return false;
+            var pe = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(dos[0x3C..]);
+            if (pe < 64 || pe > f.Length - 4) return false;
+            f.Position = pe;
+            Span<byte> sig = stackalloc byte[4];
+            return f.ReadAtLeast(sig, 4, throwOnEndOfStream: false) == 4 && sig[0] == 'P' && sig[1] == 'E' && sig[2] == 0 && sig[3] == 0;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            return false;
+        }
     }
 
     /// <summary>Normalises a path that may point at a home, its bin folder, or java(w).exe itself.</summary>
@@ -103,7 +126,7 @@ public static partial class JavaProbe
     {
         // java.exe (not javaw) prints the settings to stderr.
         var console = Path.Combine(Path.GetDirectoryName(exe)!, OperatingSystem.IsWindows() ? "java.exe" : "java");
-        if (!File.Exists(console)) console = exe;
+        if (!File.Exists(console) || (OperatingSystem.IsWindows() && !IsWindowsExecutable(console))) console = exe;
         try
         {
             var psi = new ProcessStartInfo(console, "-XshowSettings:properties -version")

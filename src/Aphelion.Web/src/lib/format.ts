@@ -36,7 +36,10 @@ export function relative(iso: string | null | undefined): string {
   if (diff < 3600) return t('time.minutes', { n: Math.floor(diff / 60) });
   if (diff < 86400) return t('time.hours', { n: Math.floor(diff / 3600) });
   if (diff < 86400 * 14) return t('time.days', { n: Math.floor(diff / 86400) });
-  return date(iso);
+  // Older dates stay short: the year only when it is not this one.
+  const d = new Date(iso);
+  const sameYear = d.getFullYear() === new Date().getFullYear();
+  return d.toLocaleDateString(locale.lang, sameYear ? { month: 'short', day: 'numeric' } : { year: 'numeric', month: 'short', day: 'numeric' });
 }
 
 export function date(iso: string | null | undefined): string {

@@ -3,7 +3,6 @@ using Aphelion.Core.Storage;
 
 namespace Aphelion.Core.Settings;
 
-public enum DownloadSourcePreference { Auto, Official, Mirror }
 public enum MemoryMode { Auto, Fixed }
 public enum AfterLaunchAction { Keep, Minimize, Close }
 
@@ -41,13 +40,12 @@ public sealed class GameDefaults
 
 public sealed class DownloadSettings
 {
-    public DownloadSourcePreference Source { get; set; } = DownloadSourcePreference.Auto;
     public int Concurrency { get; set; } = 24;
 }
 
 public sealed class LauncherSettings
 {
-    public const int CurrentSchema = 1;
+    public const int CurrentSchema = 2;
 
     public int Schema { get; set; } = CurrentSchema;
 
@@ -58,6 +56,9 @@ public sealed class LauncherSettings
     public string Theme { get; set; } = "console";
 
     public string Accent { get; set; } = "#FF5B14";
+
+    /// <summary>"system" (follow the Windows animation setting), "full" or "reduced".</summary>
+    public string Motion { get; set; } = "system";
     public DownloadSettings Download { get; set; } = new();
     public GameDefaults Game { get; set; } = new();
     public List<GameRootEntry> GameRoots { get; set; } = [];
@@ -65,8 +66,20 @@ public sealed class LauncherSettings
     public string? SelectedInstance { get; set; }
     public List<string> ExtraJavaPaths { get; set; } = [];
 
+    /// <summary>Look for a new Aphelion release at start and every few hours (one small signed file from the release page).</summary>
+    public bool CheckForUpdates { get; set; } = true;
+
     /// <summary>Azure application (client) ID used for Microsoft sign-in. Empty disables Microsoft accounts.</summary>
     public string MicrosoftClientId { get; set; } = "";
+
+    /// <summary>Applies <paramref name="map"/> to every file-system path the settings hold.</summary>
+    public void MapPaths(Func<string, string> map)
+    {
+        foreach (var r in GameRoots) r.Path = map(r.Path);
+        if (ActiveGameRoot is { } a) ActiveGameRoot = map(a);
+        if (Game.JavaPath is { } j) Game.JavaPath = map(j);
+        ExtraJavaPaths = ExtraJavaPaths.Select(map).ToList();
+    }
 
     /// <summary>Repairs values a hand-edited or older file may carry, so the rest of the app can trust them.</summary>
     public void Normalize()
@@ -77,6 +90,7 @@ public sealed class LauncherSettings
         Game.Resolution.Height = Math.Clamp(Game.Resolution.Height, 240, 16384);
         if (Language is not ("auto" or "zh-Hant" or "zh-Hans" or "en")) Language = "auto";
         if (Theme is not ("console" or "manual" or "system")) Theme = "console";
+        if (Motion is not ("system" or "full" or "reduced")) Motion = "system";
         if (!System.Text.RegularExpressions.Regex.IsMatch(Accent ?? "", "^#[0-9A-Fa-f]{6}$")) Accent = "#FF5B14";
         GameRoots = GameRoots.Where(r => !string.IsNullOrWhiteSpace(r.Path))
             .GroupBy(r => System.IO.Path.GetFullPath(r.Path), StringComparer.OrdinalIgnoreCase)
@@ -86,19 +100,24 @@ public sealed class LauncherSettings
     }
 }
 
-/// <summary>Loads, migrates and saves <see cref="LauncherSettings"/>. Thread-safe; writes are atomic.</summary>
+/// <summary>
+/// Loads, migrates and saves <see cref="LauncherSettings"/>. Thread-safe; writes are atomic.
+/// With a data root, paths inside it are written relative to it (<see cref="DataPath"/>) and read back absolute.
+/// </summary>
 public sealed class SettingsStore
 {
     private readonly string _path;
+    private readonly string? _dataRoot;
     private readonly Lock _gate = new();
     private LauncherSettings _current;
 
     public event Action<LauncherSettings>? Changed;
 
-    public SettingsStore(string path)
+    public SettingsStore(string path, string? dataRoot = null)
     {
         _path = path;
-        _current = Load(path);
+        _dataRoot = dataRoot;
+        _current = Load(path, dataRoot);
     }
 
     public LauncherSettings Current
@@ -114,7 +133,13 @@ public sealed class SettingsStore
             var next = Clone(_current);
             mutate(next);
             next.Normalize();
-            AtomicFile.WriteJson(_path, next);
+            var stored = next;
+            if (_dataRoot is { } root)
+            {
+                stored = Clone(next);
+                stored.MapPaths(p => DataPath.Contract(root, p));
+            }
+            AtomicFile.WriteJson(_path, stored);
             _current = next;
             snapshot = Clone(next);
         }
@@ -122,7 +147,7 @@ public sealed class SettingsStore
         return snapshot;
     }
 
-    internal static LauncherSettings Load(string path)
+    internal static LauncherSettings Load(string path, string? dataRoot = null)
     {
         if (!File.Exists(path) && !File.Exists(path + ".bak")) return Fresh();
         var node = AtomicFile.ReadJson<JsonObject>(path);
@@ -142,6 +167,7 @@ public sealed class SettingsStore
         }
 
         var settings = node.Deserialize<LauncherSettings>(Json.App) ?? Fresh();
+        if (dataRoot is not null) settings.MapPaths(p => DataPath.Expand(dataRoot, p));
         settings.Normalize();
         return settings;
     }
@@ -155,6 +181,10 @@ public sealed class SettingsStore
             {
                 case 0:
                     // Pre-release files had no schema field; their shape already matches schema 1.
+                    break;
+                case 1:
+                    // 0.2: downloads use the publishers' own servers only; the mirror preference is gone.
+                    (node["download"] as JsonObject)?.Remove("source");
                     break;
             }
         }

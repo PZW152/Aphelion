@@ -145,12 +145,12 @@ public static class AuthlibInjector
 {
     public const string LatestUrl = "https://authlib-injector.yushi.moe/artifact/latest.json";
 
-    public static async Task<string> EnsureAsync(string directory, DownloadSources sources, CancellationToken ct)
+    public static async Task<string> EnsureAsync(string directory, CancellationToken ct)
     {
         Directory.CreateDirectory(directory);
         JsonElement latest = default;
         Exception? last = null;
-        foreach (var url in sources.Candidates(LatestUrl))
+        foreach (var url in OfficialSources.Candidates(LatestUrl))
         {
             try { latest = await Http.GetJsonAsync<JsonElement>(url, ct).ConfigureAwait(false); last = null; break; }
             catch (Exception e) when (e is HttpRequestException or TimeoutException or JsonException) { last = e; }
@@ -167,7 +167,7 @@ public static class AuthlibInjector
         if (File.Exists(target) && await Sha256Async(target, ct).ConfigureAwait(false) == sha256) return target;
 
         var downloadUrl = latest.GetProperty("download_url").GetString()!;
-        await new Downloader(sources, 1).RunAsync([new DownloadItem(downloadUrl, target)], null, ct).ConfigureAwait(false);
+        await new Downloader(1).RunAsync([new DownloadItem(downloadUrl, target)], null, ct).ConfigureAwait(false);
         if (await Sha256Async(target, ct).ConfigureAwait(false) != sha256)
         {
             AtomicFile.TryDelete(target);

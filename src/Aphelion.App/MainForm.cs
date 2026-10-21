@@ -39,9 +39,19 @@ internal sealed class MainForm : Form, IHostWindow
     {
         var scale = DeviceDpi / 96.0;
         var area = Screen.FromHandle(Handle).WorkingArea;
-        MinimumSize = new Size((int)(1040 * scale), (int)(680 * scale));
+        MinimumSize = ScaledMinimum(DeviceDpi);
         var size = new Size(Math.Min((int)(1280 * scale), (int)(area.Width * 0.92)), Math.Min((int)(800 * scale), (int)(area.Height * 0.92)));
         Bounds = new Rectangle(area.Left + (area.Width - size.Width) / 2, area.Top + (area.Height - size.Height) / 2, size.Width, size.Height);
+    }
+
+    /// <summary>Every view is laid out to work down to 900 × 600 logical pixels (narrow rail, stacked ignition, compact readings).</summary>
+    private static Size ScaledMinimum(int dpi) => new((int)(900 * dpi / 96.0), (int)(600 * dpi / 96.0));
+
+    /// <summary>Moving to a monitor with another scale keeps the same logical minimum.</summary>
+    protected override void OnDpiChanged(DpiChangedEventArgs e)
+    {
+        MinimumSize = ScaledMinimum(e.DeviceDpiNew);
+        base.OnDpiChanged(e);
     }
 
     protected override async void OnHandleCreated(EventArgs e)
@@ -248,6 +258,7 @@ internal sealed class MainForm : Form, IHostWindow
         {
             _web.Dispose();
             _shutdown.Dispose();
+            _api?.Dispose();
         }
         base.Dispose(disposing);
     }

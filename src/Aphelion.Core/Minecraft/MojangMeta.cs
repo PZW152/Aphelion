@@ -5,7 +5,7 @@ using Aphelion.Core.Storage;
 namespace Aphelion.Core.Minecraft;
 
 /// <summary>Fetches Mojang metadata with a small on-disk cache so the version list works offline.</summary>
-public sealed class MojangMeta(DownloadSources sources, string cacheDirectory)
+public sealed class MojangMeta(string cacheDirectory)
 {
     public const string ManifestUrl = "https://piston-meta.mojang.com/mc/game/version_manifest_v2.json";
     public static readonly TimeSpan ManifestMaxAge = TimeSpan.FromMinutes(30);
@@ -37,7 +37,7 @@ public sealed class MojangMeta(DownloadSources sources, string cacheDirectory)
     public async Task<T> FetchJsonAsync<T>(string url, CancellationToken ct)
     {
         Exception? last = null;
-        foreach (var candidate in sources.Candidates(url))
+        foreach (var candidate in OfficialSources.Candidates(url))
         {
             try
             {
@@ -54,7 +54,7 @@ public sealed class MojangMeta(DownloadSources sources, string cacheDirectory)
     public async Task<byte[]> FetchBytesAsync(string url, CancellationToken ct)
     {
         Exception? last = null;
-        foreach (var candidate in sources.Candidates(url))
+        foreach (var candidate in OfficialSources.Candidates(url))
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(TimeSpan.FromSeconds(60));
@@ -79,7 +79,7 @@ public sealed class MojangMeta(DownloadSources sources, string cacheDirectory)
     public async Task<string> FetchStringAsync(string url, CancellationToken ct)
     {
         Exception? last = null;
-        foreach (var candidate in sources.Candidates(url))
+        foreach (var candidate in OfficialSources.Candidates(url))
         {
             try
             {

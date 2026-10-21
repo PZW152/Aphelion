@@ -118,7 +118,7 @@ public static class VersionResolver
     public static string? GameVersionOf(ResolvedVersion version)
     {
         var extra = version.Json.Extra;
-        // "aphelionGameVersion" is ours; "clientVersion" is written by HMCL and PCL for merged versions.
+        // "aphelionGameVersion" is ours; "clientVersion" is written by other launchers for merged versions.
         foreach (var key in new[] { "aphelionGameVersion", "clientVersion" })
         {
             if (extra is not null && extra.TryGetValue(key, out var gv) && gv.ValueKind == JsonValueKind.String && !string.IsNullOrEmpty(gv.GetString()))

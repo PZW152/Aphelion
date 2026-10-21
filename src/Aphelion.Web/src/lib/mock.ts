@@ -8,8 +8,9 @@ const now = Date.now();
 const iso = (msAgo: number) => new Date(now - msAgo).toISOString();
 
 const settings: Settings = {
-  schema: 1, language: 'auto', theme: 'console', accent: '#FF5B14',
-  download: { source: 'auto', concurrency: 24 },
+  schema: 1, language: 'auto', theme: 'console', accent: '#FF5B14', motion: 'system',
+  download: { concurrency: 24 },
+  checkForUpdates: true,
   game: { memory: { mode: 'auto', fixedMb: 4096 }, resolution: { width: 1280, height: 720, fullscreen: false }, jvmArguments: '', gameArguments: '', javaPath: null, afterLaunch: 'keep', analyzeCrashes: true },
   gameRoots: [{ path: 'C:\\Users\\Pilot\\AppData\\Local\\Aphelion\\minecraft', name: 'Aphelion' }, { path: 'D:\\Games\\.minecraft', name: 'Games' }],
   activeGameRoot: 'D:\\Games\\.minecraft', selectedInstance: '主線生存', extraJavaPaths: [], microsoftClientId: '',
@@ -195,6 +196,61 @@ export async function handle(method: string, p: any, emit: Emit): Promise<unknow
       return [{ id: 'v1', project_id: p.id, name: '24.6.1', version_number: '24.6.1', version_type: 'release', date_published: iso(86400000 * 6), downloads: 100000, loaders: ['fabric'], game_versions: ['1.21.1'], files: [], dependencies: [{ version_id: null, project_id: 'P7dR8mSH', dependency_type: 'required' }] }];
     case 'app.storage':
       return { config: 12_000, runtime: 412_000_000, cache: 96_000_000, logs: 2_400_000, paths: { config: '…\\Aphelion\\config', runtime: '…\\Aphelion\\runtime', cache: '…\\Aphelion\\cache', logs: '…\\Aphelion\\logs', root: '…\\Aphelion' } };
+    case 'app.modePlan': {
+      const folder: string | null = p.folder ?? null;
+      const programFolder = folder ? folder + '\\Aphelion' : 'C:\\Users\\Pilot\\Downloads';
+      return {
+        to: p.to, programFolder, dataRoot: programFolder + '\\Data', copiesProgram: !!folder, installed: false,
+        sameVolume: !folder || folder.startsWith('C:'),
+        items: [
+          { key: 'config', bytes: 14_200, required: true, conflict: false },
+          { key: 'minecraft', bytes: 6_480_000_000, required: false, conflict: false },
+          { key: 'runtime', bytes: 412_000_000, required: false, conflict: false },
+        ],
+        blocker: null,
+      };
+    }
+    case 'app.switchMode': {
+      const steps = ['config', 'minecraft', 'runtime'].filter((k) => k === 'config' || p.items.includes(k));
+      const total = 6_892_214_200;
+      for (let i = 0; i <= 40; i++) {
+        await new Promise((r) => setTimeout(r, 80));
+        emit('mode.progress', { item: steps[Math.min(steps.length - 1, Math.floor((i / 40) * steps.length))], done: (total * i) / 40, total });
+      }
+      return { programFolder: '', dataRoot: '' };
+    }
+    case 'dialog.pickFolder':
+      return 'E:\\';
+    case 'update.state':
+    case 'update.check': {
+      const state = {
+        current: '0.2.0', checking: false, lastChecked: new Date().toISOString(), error: null,
+        available: { version: '0.3.0', published: iso(3_600_000), size: 2_640_000, page: 'https://github.com/PZW152/Aphelion/releases/tag/v0.3.0',
+          notes: { 'zh-Hant': '- 連線檢查顯示每個官方伺服器的速度\n- 大檔案分段下載，斷線續傳\n- 修正：視窗縮小時的版面', en: '- Connection check\n- Ranged downloads with resume' } },
+      };
+      if (method === 'update.check') emit('update.changed', state);
+      return state;
+    }
+    case 'update.install': {
+      for (let i = 0; i <= 30; i++) {
+        await new Promise((r) => setTimeout(r, 60));
+        emit('update.progress', { done: (2_640_000 * i) / 30, total: 2_640_000, rate: 1_200_000 });
+      }
+      return { version: '0.3.0' };
+    }
+    case 'network.check':
+      await new Promise((r) => setTimeout(r, 1400));
+      return [
+        { key: 'mojang-meta', host: 'piston-meta.mojang.com', ok: true, addresses: 4, resolveMs: 18, firstByteMs: 142, bytesPerSecond: null, error: null },
+        { key: 'mojang-data', host: 'piston-data.mojang.com', ok: true, addresses: 4, resolveMs: 21, firstByteMs: 188, bytesPerSecond: 4_820_000, error: null },
+        { key: 'mojang-libraries', host: 'libraries.minecraft.net', ok: true, addresses: 4, resolveMs: 16, firstByteMs: 160, bytesPerSecond: null, error: null },
+        { key: 'mojang-assets', host: 'resources.download.minecraft.net', ok: true, addresses: 6, resolveMs: 14, firstByteMs: 121, bytesPerSecond: null, error: null },
+        { key: 'fabric', host: 'meta.fabricmc.net', ok: true, addresses: 2, resolveMs: 25, firstByteMs: 310, bytesPerSecond: null, error: null },
+        { key: 'forge', host: 'maven.minecraftforge.net', ok: true, addresses: 2, resolveMs: 30, firstByteMs: 820, bytesPerSecond: 640_000, error: null },
+        { key: 'neoforge', host: 'maven.neoforged.net', ok: false, addresses: 1, resolveMs: 40, firstByteMs: null, bytesPerSecond: null, error: 'timeout' },
+        { key: 'quilt', host: 'meta.quiltmc.org', ok: true, addresses: 2, resolveMs: 22, firstByteMs: 205, bytesPerSecond: null, error: null },
+        { key: 'modrinth', host: 'api.modrinth.com', ok: true, addresses: 2, resolveMs: 19, firstByteMs: 260, bytesPerSecond: null, error: null },
+      ];
     default:
       return null;
   }

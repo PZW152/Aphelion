@@ -1,14 +1,16 @@
 // Global application state (Svelte 5 runes) and the actions that keep it in sync with the host.
+import { tick } from 'svelte';
 import { call, on } from './rpc';
+import { viewTransition } from './motion';
 import { describeError, errorText, resolveLang, setLang, t } from './i18n/index.svelte';
 import type {
-  AccountList, AppInfo, GameExit, GameRootDto, Instance, JavaInstall, LogLine, MemoryStatus, Session, Settings, Task,
+  AccountList, AppInfo, GameExit, GameRootDto, HostCheck, Instance, JavaInstall, LogLine, MemoryStatus, Session, Settings, Task, UpdateState,
 } from './types';
 
 export type Route = 'launch' | 'instances' | 'download' | 'accounts' | 'telemetry' | 'settings';
 export const routes: Route[] = ['launch', 'instances', 'download', 'accounts', 'telemetry', 'settings'];
 
-export interface Toast { id: number; kind: 'info' | 'success' | 'error'; text: string }
+export interface Toast { id: number; kind: 'info' | 'success' | 'error'; text: string; ms: number }
 export interface ExitRecord { session: Session; exit: GameExit; at: number }
 
 export const app = $state({
@@ -26,6 +28,9 @@ export const app = $state({
   exits: [] as ExitRecord[],
   java: [] as JavaInstall[],
   memory: null as MemoryStatus | null,
+  update: null as UpdateState | null,
+  /** Last connection check; drives the network annunciator. */
+  network: null as HostCheck[] | null,
   toasts: [] as Toast[],
   maximized: false,
   // Cross-view navigation hints.
@@ -44,10 +49,30 @@ export const MAX_LOG_LINES = 8000;
 let toastId = 0;
 export function toast(text: string, kind: Toast['kind'] = 'info', ms = 4200) {
   const id = ++toastId;
-  app.toasts.push({ id, kind, text });
-  setTimeout(() => dismissToast(id), kind === 'error' ? ms * 2 : ms);
+  const life = kind === 'error' ? ms * 2 : ms;
+  app.toasts.push({ id, kind, text, ms: life });
+  toastTimers.set(id, { timer: setTimeout(() => dismissToast(id), life), deadline: Date.now() + life, remaining: life });
+}
+
+// Dismissal timers pause while the pointer rests on a message, so it can be read to the end.
+const toastTimers = new Map<number, { timer: ReturnType<typeof setTimeout> | null; deadline: number; remaining: number }>();
+export function pauseToast(id: number) {
+  const t = toastTimers.get(id);
+  if (!t || !t.timer) return;
+  clearTimeout(t.timer);
+  t.timer = null;
+  t.remaining = Math.max(0, t.deadline - Date.now());
+}
+export function resumeToast(id: number) {
+  const t = toastTimers.get(id);
+  if (!t || t.timer) return;
+  t.deadline = Date.now() + t.remaining;
+  t.timer = setTimeout(() => dismissToast(id), t.remaining);
 }
 export function dismissToast(id: number) {
+  const timer = toastTimers.get(id)?.timer;
+  if (timer) clearTimeout(timer);
+  toastTimers.delete(id);
   const i = app.toasts.findIndex((t) => t.id === id);
   if (i >= 0) app.toasts.splice(i, 1);
 }
@@ -56,7 +81,13 @@ export function fail(e: unknown) {
 }
 
 export function go(route: Route) {
-  app.route = route;
+  if (app.route === route) return;
+  // Pages are stacked in rail order: going down the rail moves the console up, and the reverse.
+  document.documentElement.dataset.vtDir = routes.indexOf(route) > routes.indexOf(app.route) ? 'down' : 'up';
+  viewTransition(async () => {
+    app.route = route;
+    await tick();
+  });
 }
 
 export const selectedInstance = () => {
@@ -72,6 +103,7 @@ export function applyTheme(s: Settings) {
   const dark = s.theme === 'system' ? matchMedia('(prefers-color-scheme: dark)').matches : s.theme === 'console';
   root.dataset.theme = dark ? 'console' : 'manual';
   root.style.setProperty('--accent', s.accent);
+  root.dataset.motion = s.motion ?? 'system';
   setLang(resolveLang(s.language, app.info?.uiCulture ?? navigator.language));
 }
 
@@ -189,6 +221,9 @@ export async function start() {
   app.memory = await call<MemoryStatus>('system.memory');
   app.maximized = (await call<{ maximized: boolean }>('window.state')).maximized;
   app.ready = true;
+  if (app.info.movedFrom) toast(t('mode.moved', { path: app.info.dataRoot }), 'success');
+  if (app.info.updatedFrom) toast(t('update.updated', { v: app.info.version }), 'success');
+  app.update = await call<UpdateState>('update.state').catch(() => null);
 
   setInterval(async () => {
     app.memory = await call<MemoryStatus>('system.memory').catch(() => app.memory);
@@ -207,6 +242,16 @@ on('accounts.changed', () => refreshAccounts().catch(fail));
 on('instances.changed', () => refreshInstances());
 on('tasks.changed', (batch: Task[]) => upsertTasks(batch));
 on('window.state', (s: { maximized: boolean }) => (app.maximized = s.maximized));
+// A newly found release is announced once per version.
+let announced: string | null = null;
+on('update.changed', (s: UpdateState) => {
+  app.update = s;
+  const v = s.available?.version;
+  if (v && v !== announced) {
+    announced = v;
+    toast(t('update.toast', { v }));
+  }
+});
 
 const stateRank = { starting: 0, running: 1, exited: 2 } as const;
 function upsertSession(s: Session) {

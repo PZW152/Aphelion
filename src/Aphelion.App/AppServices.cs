@@ -19,7 +19,7 @@ internal sealed class AppServices : IDisposable
 {
     public AppPaths Paths { get; }
     public SettingsStore Settings { get; }
-    public DownloadSources Sources { get; }
+    public LocalDonors Donors { get; }
     public MojangMeta Meta { get; }
     public JavaManager Java { get; }
     public AccountService Accounts { get; }
@@ -30,26 +30,31 @@ internal sealed class AppServices : IDisposable
     public ModpackService Modpacks { get; }
     public LoaderCatalog Loaders { get; }
 
+    /// <summary>Set on the first start after a mode switch: the data root the data was moved away from.</summary>
+    public string? MovedFrom { get; init; }
+
+    /// <summary>Set on the first start after an update: the version that was replaced.</summary>
+    public string? UpdatedFrom { get; init; }
+
     public AppServices(AppPaths paths)
     {
         Paths = paths;
         paths.EnsureCreated();
-        Settings = new SettingsStore(paths.SettingsFile);
+        Settings = new SettingsStore(paths.SettingsFile, paths.Root);
         EnsureDefaultGameRoot();
 
-        Sources = new DownloadSources(Settings.Current.Download.Source);
-        Settings.Changed += s => Sources.Preference = s.Download.Source;
+        Donors = new LocalDonors(() => Settings.Current.GameRoots.Select(r => r.Path).Append(LocalDonors.OfficialLauncherRoot));
 
-        Meta = new MojangMeta(Sources, paths.Cache);
+        Meta = new MojangMeta(paths.Cache);
         Java = new JavaManager(paths.Runtimes, Meta, CreateDownloader, () => Settings.Current.ExtraJavaPaths);
         Accounts = new AccountService(new AccountStore(paths.AccountsFile, new DpapiProtector()), () => Settings.Current.MicrosoftClientId);
-        Launcher = new GameLauncher(paths, () => Settings.Current, Accounts, Java, Meta, CreateDownloader, Sources);
+        Launcher = new GameLauncher(paths, () => Settings.Current, Accounts, Java, Meta, CreateDownloader);
         Content = new ContentService(Modrinth, CreateDownloader, Shell.Recycle);
         Modpacks = new ModpackService(Modrinth, CreateDownloader, paths.Temp);
         Loaders = new LoaderCatalog(Meta);
     }
 
-    public Downloader CreateDownloader() => new(Sources, Settings.Current.Download.Concurrency);
+    public Downloader CreateDownloader() => new(Settings.Current.Download.Concurrency, Donors.For);
 
     public GameRoot ActiveRoot()
     {

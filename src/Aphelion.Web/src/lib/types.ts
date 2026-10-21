@@ -2,7 +2,6 @@
 
 export type LoaderKind = 'vanilla' | 'fabric' | 'quilt' | 'forge' | 'neoForge' | 'legacyForge' | 'optiFine' | 'unknown';
 export type MemoryMode = 'auto' | 'fixed';
-export type SourcePreference = 'auto' | 'official' | 'mirror';
 export type AfterLaunch = 'keep' | 'minimize' | 'close';
 export type ProjectType = 'mod' | 'modpack' | 'resourcePack' | 'shader';
 export type ContentFolder = 'mods' | 'resourcepacks' | 'shaderpacks';
@@ -19,6 +18,33 @@ export interface AppInfo {
   runtime: string;
   logFile: string | null;
   uiCulture: string;
+  /** First start after a mode switch: where the data came from. */
+  movedFrom?: string | null;
+  /** First start after an update: the version that was replaced. */
+  updatedFrom?: string | null;
+}
+
+/** Settings › Download › Connection check: one official host. */
+export interface HostCheck { key: string; host: string; ok: boolean; addresses: number; resolveMs: number | null; firstByteMs: number | null; bytesPerSecond: number | null; error: string | null }
+
+export interface UpdateState {
+  current: string;
+  checking: boolean;
+  lastChecked: string | null;
+  error: string | null;
+  available: { version: string; published: string; size: number; notes: Record<string, string>; page: string | null } | null;
+}
+
+export type ModeBlocker = 'same' | 'nested' | 'targetHasData' | 'installed' | 'folderNotEmpty' | 'readOnly' | 'gameRunning' | 'tasksRunning';
+export interface ModePlan {
+  to: 'standard' | 'portable';
+  programFolder: string;
+  dataRoot: string;
+  copiesProgram: boolean;
+  installed: boolean;
+  sameVolume: boolean;
+  items: { key: 'config' | 'minecraft' | 'runtime'; bytes: number; required: boolean; conflict: boolean }[];
+  blocker: ModeBlocker | null;
 }
 
 export interface MemorySettings { mode: MemoryMode; fixedMb: number }
@@ -29,7 +55,9 @@ export interface Settings {
   language: 'auto' | 'zh-Hant' | 'zh-Hans' | 'en';
   theme: 'console' | 'manual' | 'system';
   accent: string;
-  download: { source: SourcePreference; concurrency: number };
+  motion: 'system' | 'full' | 'reduced';
+  download: { concurrency: number };
+  checkForUpdates: boolean;
   game: {
     memory: MemorySettings;
     resolution: ResolutionSettings;

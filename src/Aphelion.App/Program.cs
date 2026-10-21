@@ -14,6 +14,9 @@ internal static class Program
     ///   --uninstall [--quiet [--purge]]  remove the installation (Settings › Apps calls this);
     ///                              --purge also deletes Aphelion's settings, cache, logs and runtimes
     ///   --uninstall-run &lt;pid&gt;     internal: the temporary uninstaller copy
+    ///   --after-switch &lt;pid&gt; &lt;old data root&gt;  internal: first start after switching standard/portable mode
+    ///   --apply-update &lt;pid&gt; &lt;exe&gt; &lt;from&gt;   internal: a downloaded update replacing the executable that started it
+    ///   --after-update &lt;from version&gt;          internal: first start after an update
     /// </summary>
     [STAThread]
     private static int Main(string[] args)
@@ -24,10 +27,25 @@ internal static class Program
 
         if (args.Length >= 2 && args[0] == "--uninstall-run" && int.TryParse(args[1], out var parent))
             return Installation.RunUninstall(parent, quiet, purge);
+        // Before anything touches a data folder: this copy only replaces the executable that started it.
+        if (args.Length >= 4 && args[0] == "--apply-update" && int.TryParse(args[1], out var updating))
+            return Updater.Run(updating, args[2], args[3]);
+        var updateAt = Array.IndexOf(args, "--after-update");
+        var updatedFrom = updateAt >= 0 && updateAt + 1 < args.Length ? args[updateAt + 1] : null;
         if (args.Contains("--uninstall"))
         {
             Installation.LaunchUninstaller(quiet, purge);
             return 0;
+        }
+
+        // After a mode switch, the previous process may still be closing its window and browser.
+        string? movedFrom = null;
+        var switchAt = Array.IndexOf(args, "--after-switch");
+        if (switchAt >= 0 && switchAt + 2 < args.Length && int.TryParse(args[switchAt + 1], out var previous))
+        {
+            movedFrom = args[switchAt + 2];
+            try { using var p = System.Diagnostics.Process.GetProcessById(previous); p.WaitForExit(20000); }
+            catch (ArgumentException) { }
         }
 
         var paths = AppPaths.Resolve(AppContext.BaseDirectory);
@@ -63,8 +81,11 @@ internal static class Program
         AppDomain.CurrentDomain.UnhandledException += (_, e) => Log.Error("Unhandled exception", e.ExceptionObject as Exception);
         TaskScheduler.UnobservedTaskException += (_, e) => { Log.Warn("Unobserved task exception", e.Exception); e.SetObserved(); };
 
-        using var services = new AppServices(paths);
+        using var services = new AppServices(paths) { MovedFrom = movedFrom, UpdatedFrom = updatedFrom };
         services.Housekeeping();
+        _ = Task.Run(() => Updater.CleanupAsync(paths));
+        if (updatedFrom is not null) Log.Info($"Updated from {updatedFrom} to {AppInfo.Version}");
+        if (movedFrom is not null) _ = Task.Run(() => DataMigration.CleanupSource(movedFrom));
         using var form = new MainForm(services);
 
         var listener = new Thread(() =>

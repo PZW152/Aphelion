@@ -13,7 +13,13 @@
   --rail-w: 232px;
   --header-h: 76px;
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --t-fast: 140ms;
+  --t-base: 240ms;
+  --t-slow: 420ms;
 }
+@media (max-width: 1180px) { :root { --rail-w: 72px; } }
 :root:lang(zh-Hans) { --font-ui: 'Archivo Variable', 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif; }
 
 /* Console — the default, dark. */
@@ -226,6 +232,98 @@ select.input option { background: var(--panel); color: var(--ink); }
 
 .empty { display: flex; flex-direction: column; align-items: flex-start; gap: 12px; padding: 28px; color: var(--muted); max-width: 46em; line-height: 1.6; }
 
+
+/* ───────────────────────── Motion ─────────────────────────
+   Movement explains state: things slide like hardware, lamps flicker on, progress sweeps.
+   [data-motion] is set from Settings; "system" follows prefers-reduced-motion. */
+
+.btn { transition: background var(--t-fast), border-color var(--t-fast), color var(--t-fast), transform 90ms var(--ease), box-shadow var(--t-fast); }
+.btn:active:not(:disabled) { transform: translateY(1px) scale(0.985); }
+.btn.primary { position: relative; overflow: hidden; }
+/* A single light sweep when a primary action is hovered: the control "arms". */
+.btn.primary::after {
+  content: ''; position: absolute; inset: 0; pointer-events: none;
+  background: linear-gradient(105deg, transparent 35%, rgba(255, 255, 255, 0.28) 50%, transparent 65%);
+  transform: translateX(-120%);
+}
+.btn.primary:hover:not(:disabled)::after { animation: sweep-once 640ms var(--ease) 1; }
+@keyframes sweep-once { to { transform: translateX(120%); } }
+
+.switch::after { transition: transform 260ms var(--ease-spring), background var(--t-fast); }
+.switch:active::after { width: 18px; }
+.switch[aria-checked='true']:active::after { transform: translateX(14px); }
+
+.input { transition: border-color var(--t-fast), box-shadow var(--t-fast), background var(--t-fast); }
+.input:focus { box-shadow: 0 0 0 3px color-mix(in oklab, var(--accent) 22%, transparent); }
+
+/* Gliding indicator used by tab bars, segmented controls and the rail (motion.ts › glide). */
+.glide { position: absolute; pointer-events: none; transition: transform var(--t-base) var(--ease), width var(--t-base) var(--ease), height var(--t-base) var(--ease), opacity var(--t-fast); }
+.glide-x { left: 0; bottom: 0; height: 2px; background: var(--accent); }
+.tabs > button[aria-selected='true'] { box-shadow: none; }
+.tabs { position: relative; }
+
+/* Running progress: moving stripes say "working" even before a percentage is known. */
+.bar > span { transition: width 260ms var(--ease); }
+.bar.live > span, .bar.indeterminate > span {
+  background-image: repeating-linear-gradient(-45deg, rgba(255, 255, 255, 0.16) 0 6px, transparent 6px 12px);
+  background-size: 17px 17px;
+  animation: stripes 700ms linear infinite;
+}
+.bar.indeterminate > span { animation: stripes 700ms linear infinite, sweep 1.2s var(--ease) infinite; }
+@keyframes stripes { to { background-position: 17px 0; } }
+
+/* Corner registration marks, as on mission display screens. */
+.ticks { position: relative; }
+.ticks::before {
+  content: ''; position: absolute; inset: -1px; pointer-events: none; z-index: 1;
+  --m: var(--rule-strong); --l: 12px;
+  background:
+    linear-gradient(var(--m), var(--m)) top left / var(--l) 1px, linear-gradient(var(--m), var(--m)) top left / 1px var(--l),
+    linear-gradient(var(--m), var(--m)) top right / var(--l) 1px, linear-gradient(var(--m), var(--m)) top right / 1px var(--l),
+    linear-gradient(var(--m), var(--m)) bottom left / var(--l) 1px, linear-gradient(var(--m), var(--m)) bottom left / 1px var(--l),
+    linear-gradient(var(--m), var(--m)) bottom right / var(--l) 1px, linear-gradient(var(--m), var(--m)) bottom right / 1px var(--l);
+  background-repeat: no-repeat;
+}
+
+/* Skeleton rows while data loads. */
+.skeleton { background: linear-gradient(90deg, var(--panel-raised) 25%, color-mix(in oklab, var(--panel-raised) 60%, var(--ink) 8%) 50%, var(--panel-raised) 75%); background-size: 300% 100%; animation: shimmer 1.4s linear infinite; }
+@keyframes shimmer { from { background-position: 100% 0; } to { background-position: -200% 0; } }
+
+/* Lamp powering on whenever its state class changes. */
+.lamp { transition: background var(--t-base), box-shadow var(--t-base); }
+@keyframes power-on { 0% { opacity: 0.2; } 15% { opacity: 1; } 25% { opacity: 0.35; } 40% { opacity: 1; } 50% { opacity: 0.6; } 100% { opacity: 1; } }
+.power-on { animation: power-on 520ms steps(1, end) both; }
+
+/* Start-up sequence: the console powers on once, top to bottom. */
+:root[data-boot] .rail .nav li { animation: boot-row 420ms var(--ease) both; animation-delay: calc(120ms + var(--i, 0) * 55ms); }
+:root[data-boot] .annunciator-cell { animation: power-on 560ms steps(1, end) both; animation-delay: calc(380ms + var(--i, 0) * 90ms); }
+:root[data-boot] main { animation: boot-main 520ms var(--ease) both 80ms; }
+@keyframes boot-row { from { opacity: 0; transform: translateX(-10px); } }
+@keyframes boot-main { from { opacity: 0; transform: translateY(10px); } }
+
+/* Page changes (View Transitions): pages are stacked in rail order. Going down the rail, the outgoing page
+   lifts away and the next rises from below; going up, the reverse. */
+::view-transition-group(root) { animation-duration: 0s; }
+:root[data-vt='page']::view-transition-old(page) { animation: page-out 150ms var(--ease) both; }
+:root[data-vt='page']::view-transition-new(page) { animation: page-in 320ms var(--ease) both; }
+:root[data-vt='page'][data-vt-dir='up']::view-transition-old(page) { animation-name: page-out-up; }
+:root[data-vt='page'][data-vt-dir='up']::view-transition-new(page) { animation-name: page-in-up; }
+@keyframes page-out { to { opacity: 0; transform: translateY(-10px); } }
+@keyframes page-in { from { opacity: 0; transform: translateY(18px); } }
+@keyframes page-out-up { to { opacity: 0; transform: translateY(10px); } }
+@keyframes page-in-up { from { opacity: 0; transform: translateY(-18px); } }
+
+/* Theme switch: the new theme opens as a circle from the control that was pressed. */
+:root[data-vt='theme']::view-transition-old(root) { animation: none; }
+:root[data-vt='theme']::view-transition-new(root) { animation: theme-reveal 520ms var(--ease-in-out) both; }
+@keyframes theme-reveal { from { clip-path: circle(0 at var(--vt-x, 50%) var(--vt-y, 50%)); } to { clip-path: circle(150vmax at var(--vt-x, 50%) var(--vt-y, 50%)); } }
+
+/* Reduced motion: every animation and transition collapses to an instant change. */
+:root[data-motion='reduced'] *, :root[data-motion='reduced'] *::before, :root[data-motion='reduced'] *::after {
+  animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important;
+}
 @media (prefers-reduced-motion: reduce) {
-  *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
+  :root[data-motion='system'] *, :root[data-motion='system'] *::before, :root[data-motion='system'] *::after {
+    animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important;
+  }
 }

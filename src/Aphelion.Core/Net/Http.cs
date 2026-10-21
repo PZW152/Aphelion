@@ -20,6 +20,8 @@ public static class Http
             PooledConnectionLifetime = TimeSpan.FromMinutes(5),
             MaxConnectionsPerServer = 32,
             EnableMultipleHttp2Connections = true,
+            // Choose among the CDN's edges by racing connections instead of trusting the first DNS answer.
+            ConnectCallback = EdgeConnector.ConnectCallback,
         };
         var client = new HttpClient(handler) { Timeout = Timeout.InfiniteTimeSpan };
         client.DefaultRequestHeaders.UserAgent.ParseAdd(AppInfo.UserAgent);
