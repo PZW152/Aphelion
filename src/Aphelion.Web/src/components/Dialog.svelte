@@ -9,9 +9,10 @@
     title,
     width = 560,
     onclose,
+    locked = false,
     children,
     footer,
-  }: { open?: boolean; title: string; width?: number; onclose?: () => void; children: Snippet; footer?: Snippet } = $props();
+  }: { open?: boolean; title: string; width?: number; onclose?: () => void; locked?: boolean; children: Snippet; footer?: Snippet } = $props();
 
   let dialog: HTMLDialogElement;
   let closing = $state(false);
@@ -21,6 +22,8 @@
     if (open && !dialog.open) {
       closing = false;
       dialog.showModal();
+      // Start on the dialog itself: focusing the close button would show its ring as if it were selected.
+      dialog.focus();
     } else if (!open && dialog.open) {
       if (reduced()) { dialog.close(); return; }
       closing = true;
@@ -37,11 +40,11 @@
   }
 </script>
 
-<dialog bind:this={dialog} class:closing style:width="min({width}px, calc(100vw - 48px))" oncancel={(e) => { e.preventDefault(); close(); }} aria-labelledby="dialog-title">
+<dialog bind:this={dialog} tabindex="-1" class:closing style:width="min({width}px, calc(100vw - 48px))" oncancel={(e) => { e.preventDefault(); if (!locked) close(); }} aria-labelledby="dialog-title">
   {#if open || closing}
     <header>
       <h2 id="dialog-title" class="t-section">{title}</h2>
-      <button class="btn sm icon" onclick={close} aria-label={t('common.close')}><Icon name="close" size={14} /></button>
+      {#if !locked}<button class="btn sm icon" onclick={close} aria-label={t('common.close')}><Icon name="close" size={14} /></button>{/if}
     </header>
     <div class="body">{@render children()}</div>
     {#if footer}<footer>{@render footer()}</footer>{/if}
@@ -54,6 +57,7 @@
     max-height: calc(100vh - 64px); display: none; flex-direction: column;
     box-shadow: 0 24px 64px rgba(0, 0, 0, 0.45);
   }
+  dialog:focus { outline: none; }
   dialog[open] { display: flex; animation: hatch-open 300ms var(--ease) both; }
   dialog.closing { animation: hatch-close 170ms var(--ease-in-out) both; }
   dialog::backdrop { background: rgba(5, 8, 10, 0.62); backdrop-filter: blur(2px); animation: veil 240ms var(--ease) both; }

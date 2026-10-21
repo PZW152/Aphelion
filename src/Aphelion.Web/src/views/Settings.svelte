@@ -7,6 +7,7 @@
   import type { StorageInfo } from '../lib/types';
   import ViewHeader from '../components/ViewHeader.svelte';
   import Icon from '../components/Icon.svelte';
+  import ModeSwitch from './ModeSwitch.svelte';
   import { glide, viewTransition } from '../lib/motion';
 
   const sections = ['appearance', 'download', 'java', 'game', 'accounts', 'storage', 'about'] as const;
@@ -16,6 +17,8 @@
   let scroller: HTMLDivElement;
   let storage = $state<StorageInfo | null>(null);
   let scanning = $state(false);
+  let switchTo = $state<'standard' | 'portable' | null>(null);
+  let switchOpen = $state(false);
 
   const s = $derived(app.settings!);
   const maxMb = $derived(Math.max(2048, Math.floor(((app.memory?.totalMb ?? 16384) * 0.75) / 256) * 256));
@@ -87,6 +90,8 @@
 </script>
 
 <ViewHeader title={t('settings.title')} />
+
+{#if switchTo}<ModeSwitch bind:open={switchOpen} to={switchTo} />{/if}
 
 <div class="layout">
   <nav class="index" aria-label={t('settings.title')} use:glide={{ axis: 'y' }}>
@@ -249,11 +254,14 @@
     <section id="set-storage">
       <h2 class="t-section">{t('settings.section.storage')}</h2>
       <div class="cards two">
-        {#each ['standard', 'portable'] as m (m)}
-          <div class="card static" aria-current={app.info?.mode === m}>
-            <strong>{t('settings.mode.' + m)}{app.info?.mode === m ? ` · ${t('settings.mode.current')}` : ''}</strong>
+        {#each ['standard', 'portable'] as const as m (m)}
+          {@const current = app.info?.mode === m}
+          <button class="card mode" aria-current={current} disabled={current || app.info?.mode === 'override'}
+            onclick={() => { switchTo = m; switchOpen = true; }}>
+            <strong><span class="lamp {current ? 'ok' : 'hollow'}"></span>{t('settings.mode.' + m)}{current ? ` · ${t('settings.mode.current')}` : ''}</strong>
             <span>{t('settings.mode.' + m + '.hint')}</span>
-          </div>
+            {#if !current && app.info?.mode !== 'override'}<span class="go">{t('settings.mode.switch')}<Icon name="chevronRight" size={14} /></span>{/if}
+          </button>
         {/each}
       </div>
       {#if app.info?.mode === 'override'}<p class="hint">{t('settings.mode.override.hint')}</p>{/if}
@@ -317,6 +325,7 @@
   .row > .label { font-size: 14px; color: var(--ink-3); }
   .row > :last-child { justify-self: start; }
   .stack { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+  .stack > .seg { align-self: flex-start; }
   .hint { font-size: 12px; color: var(--muted); line-height: 1.55; }
   .swatches { display: flex; gap: 6px; }
   .swatch { width: 28px; height: 28px; border: 0; cursor: pointer; padding: 0; outline-offset: 2px; transition: transform var(--t-base) var(--ease-spring), outline-offset var(--t-base) var(--ease); }
@@ -330,6 +339,16 @@
   button.card { cursor: pointer; }
   .card strong { font-size: 15px; color: var(--ink); }
   .card[aria-pressed='true'], .card[aria-current='true'] { border: 1.5px solid var(--accent); }
+  button.card { transition: border-color var(--t-fast), background var(--t-fast), transform var(--t-fast) var(--ease); }
+  button.card:hover:not(:disabled) { border-color: var(--rule-strong); background: color-mix(in oklab, var(--panel-raised) 70%, var(--accent-wash)); }
+  button.card:active:not(:disabled) { transform: translateY(1px); }
+  button.card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .card.mode:disabled { cursor: default; color: var(--muted); }
+  .card.mode strong { display: flex; align-items: center; gap: 8px; }
+  .card.mode .lamp { width: 7px; height: 7px; }
+  .go { margin-top: 4px; display: inline-flex; align-items: center; gap: 4px; color: var(--accent-ink); font-weight: 600; }
+  .go :global(svg) { transition: transform var(--t-base) var(--ease); }
+  button.card:hover .go :global(svg) { transform: translateX(3px); }
   .slider { display: flex; align-items: center; gap: 16px; width: 100%; max-width: 420px; }
   .slider input { flex: 1; accent-color: var(--accent); }
   .value { font-weight: 700; min-width: 64px; }
@@ -355,5 +374,7 @@
     background: repeating-linear-gradient(-45deg, transparent 0 12px, color-mix(in oklab, var(--accent) 6%, transparent) 12px 24px); }
   .uninstall p { font-size: 13px; line-height: 1.6; color: var(--ink-3); max-width: 60em; }
   .small { font-size: 12px; }
-  @media (max-width: 1150px) { .cards.three { grid-template-columns: 1fr; } .row { grid-template-columns: 1fr; } }
+  @media (max-width: 1240px) and (min-width: 1181px) { .row { grid-template-columns: 160px minmax(0, 1fr); } }
+  @media (max-width: 960px) { .cards.three { grid-template-columns: 1fr; } .row { grid-template-columns: 1fr; gap: 8px; } }
+  @media (max-width: 1040px) { .layout { grid-template-columns: 160px minmax(0, 1fr); } .index { padding-left: 22px; } .scroll { padding-right: 28px; } .cards.two { grid-template-columns: 1fr; } }
 </style>

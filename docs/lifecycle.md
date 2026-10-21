@@ -56,7 +56,31 @@ The application identity (`AppInfo.AppId`) never changes, so upgrades always fin
 
 ## Portable mode
 
-Create an empty `Aphelion.portable` beside the executable. All data then goes to the `Data` folder next to
-it, and the whole folder can be moved or copied. Microsoft and Yggdrasil tokens are encrypted for the
-current Windows user, so on another machine those accounts ask to sign in again; nothing else is lost.
-Portable copies are not registered with Windows and are removed by deleting their folder.
+A file named `Aphelion.portable` beside the executable puts all data in the `Data` folder next to it, so
+the whole folder can be moved or copied. Paths inside the data folder are stored relative to it
+(`DataPath`), so a portable folder keeps working when its drive letter changes. Microsoft and Yggdrasil
+tokens are encrypted for the current Windows user, so on another machine those accounts ask to sign in
+again; nothing else is lost. Portable copies are not registered with Windows and are removed by deleting
+their folder.
+
+### Switching modes
+
+Settings › Data and storage › click the other mode. The dialog shows where the data goes, what moves and
+how much, and whether the move is a rename (same drive, instant) or a copy (another drive).
+
+| From → to | Program | Data |
+| --- | --- | --- |
+| Standard (not installed) → portable | stays where it is | moves to `Data` beside it; the marker is written |
+| Standard (installed) → portable | copied to a folder you choose (an installed copy must stay in Programs) | moves to `Data` in that folder |
+| Portable → standard | stays where it is; the marker is removed | moves to `%LOCALAPPDATA%\Aphelion` |
+
+What moves: settings and accounts always; the built-in game folder and downloaded Java when ticked
+(a game folder left behind stays registered at its old path). Cache, temp and logs are not moved; the next
+start recreates them, and removes the old ones once the previous process has exited. The switch is refused
+while a game or a download runs, when the destination already holds Aphelion settings or accounts, or when
+the destination is inside the current data folder.
+
+Failure never loses data (`DataMigration`): on one drive, folders are renamed and renamed back if a later
+one fails; across drives, everything is copied first and the originals are deleted only after every copy
+succeeded, and a failed copy is removed again. Aphelion then restarts from the new place with
+`--after-switch <pid> <old data root>`.

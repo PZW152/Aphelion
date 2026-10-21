@@ -218,7 +218,17 @@
   .small { font-size: 11px; font-weight: 700; letter-spacing: 0.14em; font-stretch: 80%; }
   kbd { font-family: var(--font-mono); font-size: 12px; font-weight: 600; border: 1.5px solid currentColor; padding: 3px 7px; }
 
-  @media (max-width: 1180px) {
+  /* Short windows: the same instruments, packed tighter, so the readings and actions stay on screen. */
+  @media (max-height: 760px) {
+    .readout { padding-top: 18px; padding-bottom: 18px; gap: 14px; }
+    .readout :global(.telemetry > dt), .readout :global(.telemetry > dd) { padding: 8px 0; }
+    .name { font-size: clamp(28px, 3.6vw, 44px); }
+    .deck > :global(.map) { margin-top: 18px; margin-bottom: 18px; }
+    .sequence { padding-top: 14px; padding-bottom: 14px; }
+    .guard { padding-top: 12px; padding-bottom: 12px; }
+    .ignite { height: 56px; }
+  }
+  @media (max-width: 1040px) {
     .ignition { grid-template-columns: 1fr; }
     .guard { padding: 0 28px 16px; }
   }

@@ -80,7 +80,8 @@ export function flicker(_node: Element, { delay = 0 }: Opts = {}): TransitionCon
  */
 export function viewTransition(update: () => void | Promise<void>, kind: 'page' | 'theme' = 'page', origin?: { x: number; y: number }) {
   const doc = document as Document & { startViewTransition?: (cb: () => void | Promise<void>) => unknown };
-  if (!doc.startViewTransition || reduced()) {
+  // A hidden document (minimised window) cannot run a transition; the change itself must still happen.
+  if (!doc.startViewTransition || reduced() || document.visibilityState !== 'visible') {
     void update();
     return;
   }
@@ -90,13 +91,40 @@ export function viewTransition(update: () => void | Promise<void>, kind: 'page' 
     root.style.setProperty('--vt-x', `${origin.x}px`);
     root.style.setProperty('--vt-y', `${origin.y}px`);
   }
-  const transition = doc.startViewTransition(update) as { finished: Promise<void> };
-  transition.finished.finally(() => delete root.dataset.vt);
+  let applied = false;
+  let watchdog = 0;
+  const apply = async () => {
+    clearTimeout(watchdog);
+    if (applied) return;
+    applied = true;
+    await update();
+  };
+  try {
+    const transition = doc.startViewTransition(apply) as { ready: Promise<void>; finished: Promise<void>; skipTransition(): void };
+    // The browser captures the old page on its next frame. If no frame comes (rendering paused, window occluded),
+    // the change must not wait for its animation: apply it now and drop the transition.
+    watchdog = window.setTimeout(() => {
+      if (applied) return;
+      applied = true;
+      transition.skipTransition();
+      void update();
+    }, 250);
+    // A skipped transition rejects these; the page change is what matters, not the animation.
+    transition.ready.catch(() => {});
+    transition.finished.catch(() => {}).finally(() => {
+      delete root.dataset.vt;
+      if (!applied) void update();
+    });
+  } catch {
+    delete root.dataset.vt;
+    if (!applied) void update();
+  }
 }
 
 /**
  * Svelte action: a single indicator that glides to the selected child of a tab bar or segmented control
  * (children marked aria-selected / aria-pressed / aria-current), instead of each item jumping on and off.
+ * In a scrolling list the indicator scrolls with the items, since it is positioned inside the list.
  */
 export function glide(node: HTMLElement, opts: { axis?: 'x' | 'y' } = {}) {
   const axis = opts.axis ?? 'x';
@@ -108,7 +136,7 @@ export function glide(node: HTMLElement, opts: { axis?: 'x' | 'y' } = {}) {
   let first = true;
 
   const place = () => {
-    const active = node.querySelector<HTMLElement>('[aria-selected="true"], [aria-pressed="true"], [aria-current="page"]');
+    const active = node.querySelector<HTMLElement>('[aria-selected="true"], [aria-pressed="true"], [aria-current="page"], [aria-current="true"]');
     if (!active) {
       bar.style.opacity = '0';
       return;
@@ -130,11 +158,16 @@ export function glide(node: HTMLElement, opts: { axis?: 'x' | 'y' } = {}) {
 
   const mutations = new MutationObserver(place);
   mutations.observe(node, { subtree: true, attributes: true, attributeFilter: ['aria-selected', 'aria-pressed', 'aria-current'], childList: true });
+  // Items still moving into place (list animations) are measured again once they settle.
+  node.addEventListener('transitionend', place);
+  node.addEventListener('animationend', place);
   const resize = new ResizeObserver(place);
   resize.observe(node);
   requestAnimationFrame(place);
   return {
     destroy() {
+      node.removeEventListener('transitionend', place);
+      node.removeEventListener('animationend', place);
       mutations.disconnect();
       resize.disconnect();
       bar.remove();

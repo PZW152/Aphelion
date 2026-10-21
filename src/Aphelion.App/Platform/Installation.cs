@@ -50,7 +50,7 @@ internal static class Installation
     }
 
     /// <summary>The files that make up this build: the executable and any sibling runtime files of a publish folder.</summary>
-    private static List<string> ProgramFiles()
+    internal static List<string> ProgramFiles()
     {
         var exe = Environment.ProcessPath ?? throw new InvalidOperationException("No process path");
         var dir = Path.GetDirectoryName(exe)!;

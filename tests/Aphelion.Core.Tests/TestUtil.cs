@@ -18,6 +18,18 @@ public sealed class TempDir : IDisposable
         return p;
     }
 
+    /// <summary>The smallest file that passes as a Windows executable (DOS header pointing at a PE signature).</summary>
+    public string Executable(string relative)
+    {
+        var p = System.IO.Path.Combine(Path, relative);
+        Directory.CreateDirectory(System.IO.Path.GetDirectoryName(p)!);
+        var bytes = new byte[72];
+        bytes[0] = (byte)'M'; bytes[1] = (byte)'Z'; bytes[0x3C] = 64;
+        bytes[64] = (byte)'P'; bytes[65] = (byte)'E';
+        System.IO.File.WriteAllBytes(p, bytes);
+        return p;
+    }
+
     public string Zip(string relative, params (string Name, string Content)[] entries)
     {
         var p = System.IO.Path.Combine(Path, relative);

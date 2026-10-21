@@ -19,6 +19,20 @@ export interface AppInfo {
   runtime: string;
   logFile: string | null;
   uiCulture: string;
+  /** First start after a mode switch: where the data came from. */
+  movedFrom?: string | null;
+}
+
+export type ModeBlocker = 'same' | 'nested' | 'targetHasData' | 'installed' | 'folderNotEmpty' | 'readOnly' | 'gameRunning' | 'tasksRunning';
+export interface ModePlan {
+  to: 'standard' | 'portable';
+  programFolder: string;
+  dataRoot: string;
+  copiesProgram: boolean;
+  installed: boolean;
+  sameVolume: boolean;
+  items: { key: 'config' | 'minecraft' | 'runtime'; bytes: number; required: boolean; conflict: boolean }[];
+  blocker: ModeBlocker | null;
 }
 
 export interface MemorySettings { mode: MemoryMode; fixedMb: number }

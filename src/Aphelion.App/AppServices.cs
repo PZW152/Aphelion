@@ -30,11 +30,14 @@ internal sealed class AppServices : IDisposable
     public ModpackService Modpacks { get; }
     public LoaderCatalog Loaders { get; }
 
+    /// <summary>Set on the first start after a mode switch: the data root the data was moved away from.</summary>
+    public string? MovedFrom { get; init; }
+
     public AppServices(AppPaths paths)
     {
         Paths = paths;
         paths.EnsureCreated();
-        Settings = new SettingsStore(paths.SettingsFile);
+        Settings = new SettingsStore(paths.SettingsFile, paths.Root);
         EnsureDefaultGameRoot();
 
         Sources = new DownloadSources(Settings.Current.Download.Source);

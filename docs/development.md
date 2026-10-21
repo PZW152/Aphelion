@@ -24,19 +24,20 @@ interface can be reviewed in any browser. The mock is excluded from production b
 
 To inspect the real app: set `APHELION_DEVTOOLS=1` (enables DevTools), or
 `WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9333` to attach over CDP.
-Set `APHELION_HOME=<folder>` to keep development data away from your real data.
+Set `APHELION_HOME=<folder>` to keep development data away from your real data, and
+`APHELION_STANDARD_ROOT=<folder>` to stand in for `%LOCALAPPDATA%\Aphelion` when exercising mode switching.
 
 ## Tests
 
 | Suite | What it covers | How to run |
 | --- | --- | --- |
-| Unit (137 tests, offline) | rules, Maven paths, version merging, library/native resolution, argument building, memory sizing, offline UUIDs, log4j parsing, crash rules, atomic files, settings migrations, data paths, account store and encryption boundary, redaction, mirror mapping, Java selection, instance store and rename, zip-slip protection, mod metadata, NBT world reading, loader catalogue mapping, task hub | `dotnet test tests/Aphelion.Core.Tests` |
+| Unit (150 tests, offline) | rules, Maven paths, version merging, library/native resolution, argument building, memory sizing, offline UUIDs, log4j parsing, crash rules, atomic files, settings migrations, data paths, relative data paths, mode-switch moves with rollback (rename and copy), damaged-Java rejection, account store and encryption boundary, redaction, mirror mapping, Java selection, instance store and rename, zip-slip protection, mod metadata, NBT world reading, loader catalogue mapping, task hub | `dotnet test tests/Aphelion.Core.Tests` |
 | Type check | Svelte components and TypeScript (fails on warnings, including accessibility warnings) | `npm run check --prefix src/Aphelion.Web` |
 | Smoke (network) | installs real versions from Mojang/Fabric/Quilt/Forge/NeoForge and launches each until its window appears | `dotnet run --project tools/Aphelion.Smoke -c Release -- <dataRoot> vanilla:1.21.1 fabric:1.21.1 …` |
 
 ## Verification
 
-Results from this machine (Windows 11 26300, x64, 150 % display scaling), 2026-10-20.
+Results from this machine (Windows 11 26300, x64, 150 % display scaling), 2026-10-20 and 2026-10-21.
 
 ### Verified
 
@@ -49,9 +50,11 @@ Results from this machine (Windows 11 26300, x64, 150 % display scaling), 2026-1
 | Crash diagnosis | an invalid JVM option produced the `crash.badJvmArg` finding in the UI |
 | Single file | the exe alone in an empty folder starts and renders; the loader is loaded from `runtime/webview2-loader/`; a tampered copy is detected and rewritten on the next start |
 | Motion | page transitions use View Transitions in the real WebView2; orbit bodies move and reach the aphelion smoothly on selection; with 6 bodies no label collides with another, the focus or the frame over a full 40 s sway (measured every second); Reduced motion stops orbiting and skips transitions |
+| Mode switching | on the real exe with an isolated standard root: standard → portable beside the program, portable → standard, and standard → portable copy in another folder with the game folder moved but Java left behind; settings stored relative, the program restarted in the new mode, the old folder's leftovers removed and unmoved items kept usable |
+| Narrow windows | every page at the new 900 × 600 minimum: the rail folds to glyphs with slide-out names, the instance header keeps the name readable, settings and launch control repack instead of overlapping |
 | Window chrome | drag to move, double-click to maximise/restore, maximise/close buttons, no clipping when maximised, correct size at 150 % scaling |
 | Lifecycle | install (files, Start menu shortcut, Settings › Apps entry, manifest), in-place upgrade, uninstall keeping data, uninstall with `--purge`, temporary uninstaller removes itself |
-| Bugs found by these runs and fixed | Fabric timestamps without a colon in the offset; embedded UI paths with backslashes; ROC-calendar dates in file names under zh-TW; DPI-unaware initial window size; start/exit event race for a JVM that dies instantly; old Forge needing `config/`; self-delete blocked by its own working directory |
+| Bugs found by these runs and fixed | Fabric timestamps without a colon in the offset; embedded UI paths with backslashes; ROC-calendar dates in file names under zh-TW; DPI-unaware initial window size; start/exit event race for a JVM that dies instantly; old Forge needing `config/`; self-delete blocked by its own working directory; a damaged `javaw.exe` making Windows show a blocking 16-bit-application box; a page change waiting on a View Transition that never got a frame |
 
 ### Not verified
 

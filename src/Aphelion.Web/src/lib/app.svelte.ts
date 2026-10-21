@@ -79,6 +79,8 @@ export function fail(e: unknown) {
 
 export function go(route: Route) {
   if (app.route === route) return;
+  // Pages are stacked in rail order: going down the rail moves the console up, and the reverse.
+  document.documentElement.dataset.vtDir = routes.indexOf(route) > routes.indexOf(app.route) ? 'down' : 'up';
   viewTransition(async () => {
     app.route = route;
     await tick();
@@ -216,6 +218,7 @@ export async function start() {
   app.memory = await call<MemoryStatus>('system.memory');
   app.maximized = (await call<{ maximized: boolean }>('window.state')).maximized;
   app.ready = true;
+  if (app.info.movedFrom) toast(t('mode.moved', { path: app.info.dataRoot }), 'success');
 
   setInterval(async () => {
     app.memory = await call<MemoryStatus>('system.memory').catch(() => app.memory);

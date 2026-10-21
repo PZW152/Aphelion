@@ -19,6 +19,7 @@
   --t-base: 240ms;
   --t-slow: 420ms;
 }
+@media (max-width: 1180px) { :root { --rail-w: 72px; } }
 :root:lang(zh-Hans) { --font-ui: 'Archivo Variable', 'Microsoft YaHei UI', 'PingFang SC', 'Noto Sans SC', system-ui, sans-serif; }
 
 /* Console — the default, dark. */
@@ -300,12 +301,17 @@ select.input option { background: var(--panel); color: var(--ink); }
 @keyframes boot-row { from { opacity: 0; transform: translateX(-10px); } }
 @keyframes boot-main { from { opacity: 0; transform: translateY(10px); } }
 
-/* Page changes (View Transitions): the outgoing page lifts away, the new one settles in. */
+/* Page changes (View Transitions): pages are stacked in rail order. Going down the rail, the outgoing page
+   lifts away and the next rises from below; going up, the reverse. */
 ::view-transition-group(root) { animation-duration: 0s; }
-:root[data-vt='page']::view-transition-old(page) { animation: page-out 140ms var(--ease) both; }
-:root[data-vt='page']::view-transition-new(page) { animation: page-in 300ms var(--ease) both; }
-@keyframes page-out { to { opacity: 0; transform: translateY(-6px); } }
-@keyframes page-in { from { opacity: 0; transform: translateY(12px); } }
+:root[data-vt='page']::view-transition-old(page) { animation: page-out 150ms var(--ease) both; }
+:root[data-vt='page']::view-transition-new(page) { animation: page-in 320ms var(--ease) both; }
+:root[data-vt='page'][data-vt-dir='up']::view-transition-old(page) { animation-name: page-out-up; }
+:root[data-vt='page'][data-vt-dir='up']::view-transition-new(page) { animation-name: page-in-up; }
+@keyframes page-out { to { opacity: 0; transform: translateY(-10px); } }
+@keyframes page-in { from { opacity: 0; transform: translateY(18px); } }
+@keyframes page-out-up { to { opacity: 0; transform: translateY(10px); } }
+@keyframes page-in-up { from { opacity: 0; transform: translateY(-18px); } }
 
 /* Theme switch: the new theme opens as a circle from the control that was pressed. */
 :root[data-vt='theme']::view-transition-old(root) { animation: none; }

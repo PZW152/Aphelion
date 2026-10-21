@@ -55,13 +55,26 @@ public class JavaTests
     public void Release_file_is_read_without_starting_java()
     {
         using var tmp = new TempDir();
-        tmp.File(@"jdk\bin\javaw.exe", "");
+        tmp.Executable(@"jdk\bin\javaw.exe");
         tmp.File(@"jdk\release", "IMPLEMENTOR=\"Eclipse Adoptium\"\nJAVA_VERSION=\"17.0.9\"\nOS_ARCH=\"amd64\"\n");
         var j = JavaProbe.Inspect(Path.Combine(tmp.Path, "jdk"), JavaSource.KnownLocation)!;
         Assert.Equal(17, j.Major);
         Assert.Equal("x64", j.Arch);
         Assert.Equal("Eclipse Adoptium", j.Vendor);
         Assert.Equal(Path.Combine(tmp.Path, "jdk"), JavaProbe.HomeOf(Path.Combine(tmp.Path, "jdk", "bin", "javaw.exe")));
+    }
+
+    [Fact]
+    public void A_damaged_java_is_never_started()
+    {
+        // Starting this would make Windows show a modal "unsupported 16-bit application" box.
+        using var tmp = new TempDir();
+        tmp.File(@"broken\bin\javaw.exe", "x");
+        tmp.File(@"truncated\bin\javaw.exe", "MZ");
+        Assert.Null(JavaProbe.FindExecutable(Path.Combine(tmp.Path, "broken")));
+        Assert.Null(JavaProbe.FindExecutable(Path.Combine(tmp.Path, "truncated")));
+        Assert.Null(JavaProbe.Inspect(Path.Combine(tmp.Path, "broken"), JavaSource.UserAdded));
+        Assert.True(JavaProbe.IsWindowsExecutable(Environment.ProcessPath!));
     }
 }
 

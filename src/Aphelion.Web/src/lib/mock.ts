@@ -195,6 +195,31 @@ export async function handle(method: string, p: any, emit: Emit): Promise<unknow
       return [{ id: 'v1', project_id: p.id, name: '24.6.1', version_number: '24.6.1', version_type: 'release', date_published: iso(86400000 * 6), downloads: 100000, loaders: ['fabric'], game_versions: ['1.21.1'], files: [], dependencies: [{ version_id: null, project_id: 'P7dR8mSH', dependency_type: 'required' }] }];
     case 'app.storage':
       return { config: 12_000, runtime: 412_000_000, cache: 96_000_000, logs: 2_400_000, paths: { config: '…\\Aphelion\\config', runtime: '…\\Aphelion\\runtime', cache: '…\\Aphelion\\cache', logs: '…\\Aphelion\\logs', root: '…\\Aphelion' } };
+    case 'app.modePlan': {
+      const folder: string | null = p.folder ?? null;
+      const programFolder = folder ? folder + '\\Aphelion' : 'C:\\Users\\Pilot\\Downloads';
+      return {
+        to: p.to, programFolder, dataRoot: programFolder + '\\Data', copiesProgram: !!folder, installed: false,
+        sameVolume: !folder || folder.startsWith('C:'),
+        items: [
+          { key: 'config', bytes: 14_200, required: true, conflict: false },
+          { key: 'minecraft', bytes: 6_480_000_000, required: false, conflict: false },
+          { key: 'runtime', bytes: 412_000_000, required: false, conflict: false },
+        ],
+        blocker: null,
+      };
+    }
+    case 'app.switchMode': {
+      const steps = ['config', 'minecraft', 'runtime'].filter((k) => k === 'config' || p.items.includes(k));
+      const total = 6_892_214_200;
+      for (let i = 0; i <= 40; i++) {
+        await new Promise((r) => setTimeout(r, 80));
+        emit('mode.progress', { item: steps[Math.min(steps.length - 1, Math.floor((i / 40) * steps.length))], done: (total * i) / 40, total });
+      }
+      return { programFolder: '', dataRoot: '' };
+    }
+    case 'dialog.pickFolder':
+      return 'E:\\';
     default:
       return null;
   }
