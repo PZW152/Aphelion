@@ -18,7 +18,7 @@ Inside the root, folders are split by lifecycle:
 | `minecraft/` | built-in game folder (instances, worlds, mods) | yes | deleted only if the extra box is ticked |
 | `runtime/` | Java runtimes Aphelion downloaded, authlib-injector, the WebView2 loader unpacked from the exe | yes | deleted |
 | `cache/` | version manifest cache, WebView2 profile | yes | deleted |
-| `temp/` | per-launch natives, installer scratch | cleaned at every start | deleted |
+| `temp/` | per-launch natives, installer scratch, downloaded updates (`update-<version>/`) | cleaned at every start | deleted |
 | `logs/` | launcher logs, newest 10 kept, secrets redacted | yes | deleted |
 
 Game folders you add yourself (for example an existing `D:\Games\.minecraft`) are referenced from
@@ -53,6 +53,25 @@ without being rewritten silently.
 | Uninstall | Windows Settings › Apps, Settings › *Uninstall…*, or `--uninstall` | a temporary copy of the executable waits for Aphelion to exit, asks *keep data* vs *full cleanup*, removes exactly the items in the manifest, reports anything it could not remove, then deletes itself |
 
 The application identity (`AppInfo.AppId`) never changes, so upgrades always find the existing installation.
+
+## Updates
+
+Settings › About shows the installed version and any newer release (checked at start and every 6 hours
+unless turned off; see [architecture.md](architecture.md#self-update) for how a release is trusted).
+*Download and restart*:
+
+1. Downloads the new executable into `temp/update-<version>/` and checks its size and SHA-256 against the signed manifest.
+2. Starts it with `--apply-update <pid> <exe> <old version>` and exits.
+3. The new executable waits for the old process to end, then upgrades in place:
+   - an installed copy through the normal per-user install (program folder staged and swapped, Start menu and
+     Settings › Apps entry refreshed);
+   - a loose or portable copy by renaming the old executable to `Aphelion.exe.old` and copying itself into its
+     place; if that fails, the old file is renamed back and the old version starts as before.
+4. The upgraded launcher starts with `--after-update`, shows *Updated to …*, and removes `Aphelion.exe.old`
+   and the download folder.
+
+Data, settings, accounts and the portable marker are never touched by an update. The update is refused while a
+game or a download is running.
 
 ## Portable mode
 

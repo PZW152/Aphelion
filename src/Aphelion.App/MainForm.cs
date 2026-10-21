@@ -258,6 +258,7 @@ internal sealed class MainForm : Form, IHostWindow
         {
             _web.Dispose();
             _shutdown.Dispose();
+            _api?.Dispose();
         }
         base.Dispose(disposing);
     }

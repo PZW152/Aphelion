@@ -211,28 +211,3 @@ public class RedactionTests
     [InlineData("token eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abc", "eyJzdWIiOiIxMjM0NTY3ODkwIn0")]
     public void Secrets_are_masked(string input, string secret) => Assert.DoesNotContain(secret, Log.Redact(input));
 }
-
-public class DownloadSourcesTests
-{
-    [Theory]
-    [InlineData("https://libraries.minecraft.net/a/b.jar", "https://bmclapi2.bangbang93.com/maven/a/b.jar")]
-    [InlineData("https://resources.download.minecraft.net/ab/abcd", "https://bmclapi2.bangbang93.com/assets/ab/abcd")]
-    [InlineData("https://piston-meta.mojang.com/mc/game/version_manifest_v2.json", "https://bmclapi2.bangbang93.com/mc/game/version_manifest_v2.json")]
-    [InlineData("https://meta.fabricmc.net/v2/versions", "https://bmclapi2.bangbang93.com/fabric-meta/v2/versions")]
-    public void Official_urls_map_to_the_mirror(string official, string mirror) => Assert.Equal(mirror, DownloadSources.ToMirror(official));
-
-    [Fact]
-    public void Unknown_hosts_have_no_mirror() => Assert.Null(DownloadSources.ToMirror("https://cdn.modrinth.com/data/x.jar"));
-
-    [Fact]
-    public void Candidate_order_follows_preference()
-    {
-        const string url = "https://libraries.minecraft.net/a.jar";
-        Assert.Equal(url, new DownloadSources(DownloadSourcePreference.Official).Candidates(url)[0]);
-        Assert.StartsWith(DownloadSources.MirrorBase, new DownloadSources(DownloadSourcePreference.Mirror).Candidates(url)[0]);
-        var auto = new DownloadSources(DownloadSourcePreference.Auto);
-        Assert.Equal(url, auto.Candidates(url)[0]);
-        auto.OfficialUnreachable = true;
-        Assert.StartsWith(DownloadSources.MirrorBase, auto.Candidates(url)[0]);
-    }
-}

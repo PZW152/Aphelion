@@ -3,7 +3,6 @@ using Aphelion.Core.Storage;
 
 namespace Aphelion.Core.Settings;
 
-public enum DownloadSourcePreference { Auto, Official, Mirror }
 public enum MemoryMode { Auto, Fixed }
 public enum AfterLaunchAction { Keep, Minimize, Close }
 
@@ -41,13 +40,12 @@ public sealed class GameDefaults
 
 public sealed class DownloadSettings
 {
-    public DownloadSourcePreference Source { get; set; } = DownloadSourcePreference.Auto;
     public int Concurrency { get; set; } = 24;
 }
 
 public sealed class LauncherSettings
 {
-    public const int CurrentSchema = 1;
+    public const int CurrentSchema = 2;
 
     public int Schema { get; set; } = CurrentSchema;
 
@@ -67,6 +65,9 @@ public sealed class LauncherSettings
     public string? ActiveGameRoot { get; set; }
     public string? SelectedInstance { get; set; }
     public List<string> ExtraJavaPaths { get; set; } = [];
+
+    /// <summary>Look for a new Aphelion release at start and every few hours (one small signed file from the release page).</summary>
+    public bool CheckForUpdates { get; set; } = true;
 
     /// <summary>Azure application (client) ID used for Microsoft sign-in. Empty disables Microsoft accounts.</summary>
     public string MicrosoftClientId { get; set; } = "";
@@ -180,6 +181,10 @@ public sealed class SettingsStore
             {
                 case 0:
                     // Pre-release files had no schema field; their shape already matches schema 1.
+                    break;
+                case 1:
+                    // 0.2: downloads use the publishers' own servers only; the mirror preference is gone.
+                    (node["download"] as JsonObject)?.Remove("source");
                     break;
             }
         }

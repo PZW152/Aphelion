@@ -10,6 +10,7 @@ tests/
 tools/
   Aphelion.Smoke/    end-to-end install + launch against the real services (not shipped)
   make-icon.ps1      renders the application icon
+  release.ps1        builds a release and signs its update manifest (see development.md)
 ```
 
 Dependencies point one way: `Web → (bridge) → App → Core`. Core never references App or Windows UI.
@@ -32,7 +33,8 @@ Trade-off accepted: WebView2 uses more memory than a native XAML UI (tens of MB)
 | --- | --- |
 | `Storage` | `AppPaths` (one data root, split by lifecycle), `AtomicFile` (temp-write + replace + `.bak`), JSON options |
 | `Settings` | Versioned `settings.json` with sequential migrations and value normalisation |
-| `Net` | Shared `HttpClient`, BMCLAPI mirror mapping, parallel verified `Downloader` (`.part` files, SHA-1, stall timeout, candidate fallback) |
+| `Net` | Shared `HttpClient` whose connections race across the CDN's edges (`EdgeConnector`), `OfficialSources` (publishers' own hosts and their official alternates only), parallel verified `Downloader` (ranged downloads with per-range resume, reuse of identical files from other game folders, `.part` files, SHA-1/SHA-256, stall timeout), `NetworkCheck` |
+| `Update` | Signed update manifest (`update.json` + ECDSA P-256 signature), version ordering, verified download of the new executable |
 | `Minecraft` | Version JSON model, rule evaluation, `inheritsFrom` flattening, library/native resolution, asset handling, path-traversal guards |
 | `Install` | Self-contained instance creation (staged then moved into place), repair, loader catalogues, Forge/NeoForge installer (modern processors and legacy universal jar) |
 | `Java` | Discovery (registry, known folders, PATH, official launcher runtimes), selection per game version, Mojang runtime download |
@@ -58,6 +60,30 @@ The page talks to the host through `chrome.webview.postMessage` with a small JSO
 - events `{"event":"tasks.changed","data":[…]}` — task progress is coalesced to ~8 updates per second, game logs are batched every 100 ms.
 
 Errors carry a stable `code` that the UI translates (zh-Hant, zh-Hans, en); the English `message` is only a fallback.
+
+## Downloads: official sources only
+
+Every file comes from its publisher's own servers (Mojang, Fabric, Forge, NeoForge, Quilt, Modrinth, authlib-injector);
+no third-party mirror is used. Speed on long-distance or lossy links comes from how those servers are used:
+
+| Technique | Effect |
+| --- | --- |
+| Edge racing (`EdgeConnector`) | All addresses DNS returns are tried at a 250 ms stagger, alternating IPv6/IPv4; the first connection wins and is remembered for 10 minutes. A blackholed edge or broken IPv6 costs 250 ms instead of a full connect timeout. |
+| Ranged downloads | Files of 8 MB and more arrive as 4–8 parallel byte ranges written into one preallocated `.part`; a dropped range resumes from its last byte. Hosts that ignore ranges are streamed whole. |
+| Local reuse (`LocalDonors`) | A needed asset or library already present in another game folder on the PC (including the official launcher's `%APPDATA%\.minecraft`) is copied after its hash matches the official metadata. |
+| Official alternates | `piston-meta` ↔ `launchermeta`, `piston-data` → `launcher.mojang.com`, `meta.fabricmc.net` → `meta2.fabricmc.net`. |
+| HTTP/2 and pooling | One shared client, multiple HTTP/2 connections per host, stall detection after 20 s. |
+
+Settings › Download › *Connection check* measures each host from the user's network (DNS, first byte, a 2 MB throughput sample).
+
+## Self-update
+
+A release publishes `Aphelion.exe`, `update.json` and `update.json.sig`. The launcher reads the latest
+`update.json` at start and every 6 hours (Settings › About can turn this off), and trusts it only if the ECDSA
+P-256 signature verifies with the public key compiled into the program, the manifest names this application's
+`AppId`, and the version is newer than its own (so an old manifest cannot be replayed to downgrade). The
+manifest pins the executable's size and SHA-256, so the download location needs no trust; URLs must be HTTPS.
+Applying the update is described in [lifecycle.md](lifecycle.md#updates).
 
 Security of the page:
 - served from embedded resources at `https://app.aphelion.internal/` with a strict Content-Security-Policy (no remote scripts);

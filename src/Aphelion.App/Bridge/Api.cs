@@ -39,6 +39,7 @@ internal sealed partial class Api
         RegisterContent();
         RegisterGame();
         RegisterMode();
+        RegisterUpdates();
         WireEvents();
     }
 
@@ -60,6 +61,7 @@ internal sealed partial class Api
             logFile = Log.CurrentFile,
             uiCulture = System.Globalization.CultureInfo.CurrentUICulture.Name,
             movedFrom = _s.MovedFrom,
+            updatedFrom = _s.UpdatedFrom,
         });
 
         _rpc.Add("app.storage", (JsonElement _, CancellationToken ct) => Task.Run<object?>(() => new

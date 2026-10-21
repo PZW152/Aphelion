@@ -70,7 +70,15 @@ internal static class Installation
         if (IsInstalledCopy()) throw AppException.Of("install.already", "This copy is already the installed one.");
         if (paths.Mode == RunMode.Portable)
             throw AppException.Of("install.portable", "Portable copies keep their data beside the executable; copy the folder instead, or remove the marker file first.");
+        InstallProgram([]);
+    }
 
+    /// <summary>
+    /// Installs (or upgrades in place) the running executable, then starts the installed copy with <paramref name="relaunchArgs"/>.
+    /// Also used by <see cref="Updater"/>, running from the downloaded update.
+    /// </summary>
+    public static void InstallProgram(IReadOnlyList<string> relaunchArgs)
+    {
         var target = InstallDirectory;
         var staging = target + ".new";
         if (Directory.Exists(staging)) Directory.Delete(staging, true);
@@ -118,7 +126,9 @@ internal static class Installation
         Log.Info($"Installed {AppInfo.Version} to {target}");
 
         // Shell execute: the installed copy must not inherit this process's console handles.
-        Process.Start(new ProcessStartInfo(exe) { UseShellExecute = true, WorkingDirectory = target });
+        var start = new ProcessStartInfo(exe) { UseShellExecute = true, WorkingDirectory = target };
+        foreach (var a in relaunchArgs) start.ArgumentList.Add(a);
+        Process.Start(start);
         Application.Exit();
     }
 

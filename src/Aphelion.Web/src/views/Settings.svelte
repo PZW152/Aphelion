@@ -8,6 +8,8 @@
   import ViewHeader from '../components/ViewHeader.svelte';
   import Icon from '../components/Icon.svelte';
   import ModeSwitch from './ModeSwitch.svelte';
+  import NetworkCheck from './NetworkCheck.svelte';
+  import UpdatePanel from './UpdatePanel.svelte';
   import { glide, viewTransition } from '../lib/motion';
 
   const sections = ['appearance', 'download', 'java', 'game', 'accounts', 'storage', 'about'] as const;
@@ -142,15 +144,10 @@
 
     <section id="set-download">
       <h2 class="t-section">{t('settings.section.download')}</h2>
-      <div class="cards three">
-        {#each ['auto', 'official', 'mirror'] as v (v)}
-          <button class="card" aria-pressed={s.download.source === v} onclick={() => updateSettings({ download: { source: v } })}>
-            <strong>{t('settings.source.' + v)}</strong>
-            <span>{v === 'auto' ? t('settings.source.auto.hint') : v === 'official' ? 'piston-data.mojang.com · Forge · Fabric' : 'bmclapi2.bangbang93.com'}</span>
-          </button>
-        {/each}
+      <div class="cards two">
+        <div class="card static"><strong>{t('settings.download.official')}</strong><span>{t('settings.download.official.body')}</span></div>
+        <div class="card static"><strong>{t('settings.download.speed')}</strong><span>{t('settings.download.speed.body')}</span></div>
       </div>
-      <p class="hint">{t('settings.source.hint')}</p>
       <div class="row">
         <span class="label">{t('settings.concurrency')}</span>
         <div class="slider">
@@ -158,6 +155,7 @@
           <span class="tnum value">{s.download.concurrency}</span>
         </div>
       </div>
+      <NetworkCheck />
     </section>
 
     <section id="set-java">
@@ -296,6 +294,7 @@
 
     <section id="set-about">
       <h2 class="t-section">{t('settings.section.about')}</h2>
+      <UpdatePanel />
       <dl class="telemetry">
         <dt>{t('settings.about.version')}</dt><dd>Aphelion {app.info?.version}</dd>
         <dt>{t('settings.about.runtime')}</dt><dd>.NET {app.info?.runtime} · {app.info?.os}</dd>
@@ -333,12 +332,11 @@
   .swatch[aria-pressed='true'] { outline-offset: 3px; }
   .swatch[aria-pressed='true'] { outline: 2px solid var(--ink); }
   .cards { display: grid; gap: 8px; }
-  .cards.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .cards.two { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .card { display: flex; flex-direction: column; gap: 6px; padding: 14px; background: var(--panel-raised); border: 1px solid var(--rule); text-align: left; font-size: 13px; color: var(--muted); line-height: 1.5; }
   button.card { cursor: pointer; }
   .card strong { font-size: 15px; color: var(--ink); }
-  .card[aria-pressed='true'], .card[aria-current='true'] { border: 1.5px solid var(--accent); }
+  .card[aria-current='true'] { border: 1.5px solid var(--accent); }
   button.card { transition: border-color var(--t-fast), background var(--t-fast), transform var(--t-fast) var(--ease); }
   button.card:hover:not(:disabled) { border-color: var(--rule-strong); background: color-mix(in oklab, var(--panel-raised) 70%, var(--accent-wash)); }
   button.card:active:not(:disabled) { transform: translateY(1px); }
@@ -375,6 +373,6 @@
   .uninstall p { font-size: 13px; line-height: 1.6; color: var(--ink-3); max-width: 60em; }
   .small { font-size: 12px; }
   @media (max-width: 1240px) and (min-width: 1181px) { .row { grid-template-columns: 160px minmax(0, 1fr); } }
-  @media (max-width: 960px) { .cards.three { grid-template-columns: 1fr; } .row { grid-template-columns: 1fr; gap: 8px; } }
+  @media (max-width: 960px) { .row { grid-template-columns: 1fr; gap: 8px; } }
   @media (max-width: 1040px) { .layout { grid-template-columns: 160px minmax(0, 1fr); } .index { padding-left: 22px; } .scroll { padding-right: 28px; } .cards.two { grid-template-columns: 1fr; } }
 </style>

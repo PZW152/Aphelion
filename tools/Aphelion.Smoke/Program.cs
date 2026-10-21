@@ -24,13 +24,13 @@ Log.Initialize(paths.Logs);
 Log.Written += (_, line) => { if (line.Contains("[WARN") || line.Contains("[ERROR")) Console.WriteLine("  log: " + line); };
 
 var settings = new SettingsStore(paths.SettingsFile);
-var sources = new DownloadSources(DownloadSourcePreference.Auto);
-var meta = new MojangMeta(sources, paths.Cache);
-Downloader NewDownloader() => new(sources, 32);
+var meta = new MojangMeta(paths.Cache);
+// No local reuse here: the smoke test measures downloads from the official servers themselves.
+Downloader NewDownloader() => new(32);
 using var java = new JavaManager(paths.Runtimes, meta, NewDownloader, () => []);
 var accounts = new AccountService(new AccountStore(paths.AccountsFile, new PlainSecretProtector()), () => "");
 var account = accounts.AddOffline("Smoke_Pilot");
-var launcher = new GameLauncher(paths, () => settings.Current, accounts, java, meta, NewDownloader, sources);
+var launcher = new GameLauncher(paths, () => settings.Current, accounts, java, meta, NewDownloader);
 var root = new GameRoot(paths.DefaultGameRoot);
 var catalog = new LoaderCatalog(meta);
 var failures = 0;

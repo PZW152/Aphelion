@@ -15,8 +15,8 @@ aphelion.
 | Launch | Six-stage sequence (verify files → Java → account → natives → arguments → ignition), per-version Java selection with automatic download of Mojang runtimes, automatic heap sizing, Quick Play server join, live log console, rule-based crash diagnosis. |
 | Accounts | Offline, Microsoft (device-code sign-in), and authlib-injector servers (LittleSkin, Blessing Skin). Tokens are encrypted with DPAPI; passwords are never stored. |
 | Content | Modrinth search and install with required dependencies, update checks by file hash, drag-and-drop install, enable/disable, `.mrpack` import and export, world list. |
-| Downloads | Parallel, SHA-1 verified, atomic. Official sources with automatic fallback to the BMCLAPI mirror. |
-| Lifecycle | Per-user install (no admin rights), in-place upgrade, uninstall that keeps data by default, explicit full cleanup. One click switches between standard and portable mode and moves the data safely. |
+| Downloads | Only from the publishers' own servers, every file hash-verified. Large files in parallel ranges with resume, connections raced across CDN edges, identical files reused from other game folders on the PC; a connection check shows how each official server performs from your network. |
+| Lifecycle | Per-user install (no admin rights), in-place upgrade, uninstall that keeps data by default, explicit full cleanup. One click switches between standard and portable mode and moves the data safely. Signed in-place updates from the release page. |
 | Interface | Traditional Chinese, Simplified Chinese and English; dark and light themes; a motion system with a reduced mode; works from a 900 × 600 window up. |
 
 ## Quick start

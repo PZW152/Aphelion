@@ -9,13 +9,19 @@
 
   const cells = $derived.by(() => {
     const s = app.settings;
-    const source = s?.download.source ?? 'auto';
+    const netTotal = app.network?.length ?? 0;
+    const netFailed = app.network?.filter((x) => !x.ok).length ?? 0;
     const account = selectedAccount();
     const tasks = runningTasks().length;
     const live = liveSessions();
     const starting = live.some((x) => x.state === 'starting');
     const list: { key: string; label: string; value: string; tone: Tone; secondary?: boolean }[] = [
-      { key: 'net', label: t('ann.network'), value: t('ann.source.' + (source === 'mirror' ? 'mirror' : source === 'official' ? 'official' : 'auto')), tone: 'ok' },
+      // Official sources only; a connection check that found blocked hosts turns the lamp amber or red.
+      {
+        key: 'net', label: t('ann.network'),
+        value: netFailed === 0 ? t('ann.source.official') : netFailed === netTotal ? t('ann.net.down') : t('ann.net.partial'),
+        tone: netFailed === 0 ? 'ok' : netFailed === netTotal ? 'warning' : 'caution',
+      },
       { key: 'java', label: t('ann.java'), value: app.java.length ? t('ann.java.count', { n: app.java.length }) : t('ann.java.none'), tone: app.java.length ? 'ok' : 'caution' },
       {
         key: 'auth', label: t('ann.account'),

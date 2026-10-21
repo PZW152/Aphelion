@@ -4,7 +4,7 @@ import { call, on } from './rpc';
 import { viewTransition } from './motion';
 import { describeError, errorText, resolveLang, setLang, t } from './i18n/index.svelte';
 import type {
-  AccountList, AppInfo, GameExit, GameRootDto, Instance, JavaInstall, LogLine, MemoryStatus, Session, Settings, Task,
+  AccountList, AppInfo, GameExit, GameRootDto, HostCheck, Instance, JavaInstall, LogLine, MemoryStatus, Session, Settings, Task, UpdateState,
 } from './types';
 
 export type Route = 'launch' | 'instances' | 'download' | 'accounts' | 'telemetry' | 'settings';
@@ -28,6 +28,9 @@ export const app = $state({
   exits: [] as ExitRecord[],
   java: [] as JavaInstall[],
   memory: null as MemoryStatus | null,
+  update: null as UpdateState | null,
+  /** Last connection check; drives the network annunciator. */
+  network: null as HostCheck[] | null,
   toasts: [] as Toast[],
   maximized: false,
   // Cross-view navigation hints.
@@ -219,6 +222,8 @@ export async function start() {
   app.maximized = (await call<{ maximized: boolean }>('window.state')).maximized;
   app.ready = true;
   if (app.info.movedFrom) toast(t('mode.moved', { path: app.info.dataRoot }), 'success');
+  if (app.info.updatedFrom) toast(t('update.updated', { v: app.info.version }), 'success');
+  app.update = await call<UpdateState>('update.state').catch(() => null);
 
   setInterval(async () => {
     app.memory = await call<MemoryStatus>('system.memory').catch(() => app.memory);
@@ -237,6 +242,16 @@ on('accounts.changed', () => refreshAccounts().catch(fail));
 on('instances.changed', () => refreshInstances());
 on('tasks.changed', (batch: Task[]) => upsertTasks(batch));
 on('window.state', (s: { maximized: boolean }) => (app.maximized = s.maximized));
+// A newly found release is announced once per version.
+let announced: string | null = null;
+on('update.changed', (s: UpdateState) => {
+  app.update = s;
+  const v = s.available?.version;
+  if (v && v !== announced) {
+    announced = v;
+    toast(t('update.toast', { v }));
+  }
+});
 
 const stateRank = { starting: 0, running: 1, exited: 2 } as const;
 function upsertSession(s: Session) {

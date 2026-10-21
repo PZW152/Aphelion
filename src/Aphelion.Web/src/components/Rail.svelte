@@ -26,6 +26,7 @@
     if (r === 'telemetry' && gameLive) return 'lamp caution pulse';
     if (r === 'download' && tasks.length > 0) return 'lamp caution';
     if (r === 'accounts' && account?.needsSignIn) return 'lamp warning';
+    if (r === 'settings' && app.update?.available) return 'lamp caution';
     return 'lamp hollow';
   }
 </script>
